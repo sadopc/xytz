@@ -26,6 +26,7 @@ type Model struct {
 	Videos       []list.Item
 	VideoList    models.VideoListModel
 	FormatList   models.FormatListModel
+	Download     models.DownloadModel
 	ErrMsg       string
 }
 
@@ -44,6 +45,7 @@ func NewModel() *Model {
 		Spinner:    s,
 		VideoList:  models.NewVideoListModel(),
 		FormatList: models.NewFormatListModel(),
+		Download:   models.NewDownloadModel(),
 	}
 }
 
@@ -56,6 +58,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Search = m.Search.HandleResize(m.Width, m.Height)
 		m.VideoList = m.VideoList.HandleResize(m.Width, m.Height)
 		m.FormatList = m.FormatList.HandleResize(m.Width, m.Height)
+		m.Download = m.Download.HandleResize(m.Width, m.Height)
 	case spinner.TickMsg:
 		var spinnerCmd tea.Cmd
 		m.Spinner, spinnerCmd = m.Spinner.Update(msg)
@@ -69,6 +72,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case types.StartFormatMsg:
 		m.State = types.StateLoading
 		m.LoadingType = "format"
+		m.FormatList.URL = msg.URL
 		cmd = utils.FetchFormats(msg.URL)
 		m.ErrMsg = ""
 	case types.SearchResultMsg:
@@ -86,6 +90,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = types.StateFormatList
 		m.ErrMsg = msg.Err
 		return m, nil
+	case types.StartDownloadMsg:
+		m.State = types.StateDownload
+		m.Download.Progress.SetPercent(0.0)
+		m.Download.Completed = false
+		m.Download.CurrentSpeed = ""
+		m.Download.CurrentETA = ""
+		cmd = tea.Batch(utils.StartDownload(m.Program, msg.URL, msg.FormatID), m.Download.Init())
+		return m, cmd
+	case types.DownloadResultMsg:
+		if msg.Err != "" {
+			m.ErrMsg = msg.Err
+			m.State = types.StateSearchInput
+		} else {
+			m.Download.Completed = true
+		}
+		return m, nil
+	case types.GoBackMsg:
+		m.State = types.StateSearchInput
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
@@ -93,18 +116,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		switch m.State {
 		case types.StateSearchInput:
-			updatedSearch, searchCmd := m.Search.Update(msg)
-			m.Search = updatedSearch.(models.SearchModel)
-			cmd = searchCmd
+			m.Search, cmd = m.Search.Update(msg)
 		case types.StateVideoList:
-			updatedList, listCmd := m.VideoList.Update(msg)
-			m.VideoList = updatedList.(models.VideoListModel)
-			cmd = listCmd
+			m.VideoList, cmd = m.VideoList.Update(msg)
 		case types.StateFormatList:
-			updatedList, listCmd := m.FormatList.Update(msg)
-			m.FormatList = updatedList.(models.FormatListModel)
-			cmd = listCmd
+			m.FormatList, cmd = m.FormatList.Update(msg)
+		case types.StateDownload:
+			m.Download, cmd = m.Download.Update(msg)
 		}
+	}
+
+	switch m.State {
+	case types.StateDownload:
+		updated, cmd2 := m.Download.Update(msg)
+		m.Download = updated
+		cmd = tea.Batch(cmd, cmd2)
 	}
 
 	return m, cmd
@@ -125,12 +151,20 @@ func (m *Model) View() string {
 		content = m.VideoList.View()
 	case types.StateFormatList:
 		content = m.FormatList.View()
+	case types.StateDownload:
+		content = m.Download.View()
 	}
 
 	var left string
 	switch m.State {
 	case types.StateSearchInput:
 		left = "Ctrl+C: quit"
+	case types.StateDownload:
+		if m.Download.Completed {
+			left = "Ctrl+C: quit • Enter: Back to Search"
+		} else {
+			left = "Ctrl+C: quit"
+		}
 	default:
 		left = "Ctrl+C: quit • q: quit"
 	}

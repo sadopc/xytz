@@ -9,6 +9,7 @@ const (
 	StateLoading     = "loading"
 	StateVideoList   = "video_list"
 	StateFormatList  = "format_list"
+	StateDownload    = "download"
 )
 
 type StartSearchMsg struct {
@@ -17,6 +18,12 @@ type StartSearchMsg struct {
 
 type StartFormatMsg struct {
 	URL string
+}
+
+type ProgressMsg struct {
+	Percent float64
+	Speed   string
+	Eta     string
 }
 
 type VideoItem struct {
@@ -47,9 +54,23 @@ type FormatItem struct {
 
 func (i FormatItem) Title() string       { return i.FormatTitle }
 func (i FormatItem) Description() string { return i.Size }
-func (i FormatItem) FilterValue() string { return i.FormatTitle + " " + i.Size + " " + i.Language + " " + i.Resolution + " " + i.FormatType }
+func (i FormatItem) FilterValue() string {
+	return i.FormatTitle + " " + i.Size + " " + i.Language + " " + i.Resolution + " " + i.FormatType
+}
 
 type FormatResultMsg struct {
 	Formats []list.Item
 	Err     string
 }
+
+type StartDownloadMsg struct {
+	URL      string
+	FormatID string
+}
+
+type DownloadResultMsg struct {
+	Output string
+	Err    string
+}
+
+type GoBackMsg struct{}

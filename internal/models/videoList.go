@@ -41,9 +41,9 @@ func (m VideoListModel) Init() tea.Cmd {
 func (m VideoListModel) View() string {
 	var s strings.Builder
 
-	s.WriteString(styles.SectionHeaderStyle.Foreground(styles.MauveColor).Padding(1, 0).Render("Search Results for: " + m.CurrentQuery))
+	s.WriteString(styles.SectionHeaderStyle.Render("Search Results for: " + m.CurrentQuery))
 	s.WriteRune('\n')
-	s.WriteString(m.List.View())
+	s.WriteString(styles.ListContainer.Render(m.List.View()))
 
 	return s.String()
 }
@@ -55,7 +55,7 @@ func (m VideoListModel) HandleResize(w, h int) VideoListModel {
 	return m
 }
 
-func (m VideoListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m VideoListModel) Update(msg tea.Msg) (VideoListModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:

@@ -11,6 +11,7 @@ import (
 func main() {
 	m := app.NewModel()
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	m.Program = p
 
 	logger, _ := tea.LogToFile("debug.log", "debug")
 	defer logger.Close()

@@ -19,7 +19,8 @@ var (
 	ASCIIStyle         = lipgloss.NewStyle().Foreground(MauveColor).PaddingBottom(1)
 	SectionHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
-				Foreground(PrimaryColor)
+				Foreground(PrimaryColor).
+				Padding(1, 0)
 	StatusBarStyle = lipgloss.NewStyle().Foreground(MutedColor).MarginTop(1)
 	InputStyle     = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), true, false).BorderForeground(MutedColor)
 
@@ -29,5 +30,15 @@ var (
 	ListDescStyle          = listStyle.Foreground(lipgloss.Color("#6c7086"))
 	ListSelectedDescStyle  = listStyle.Foreground(lipgloss.Color("#cdd6f4"))
 
+	ListContainer = lipgloss.NewStyle().PaddingBottom(1)
+
 	SpinnerStyle = lipgloss.NewStyle().Foreground(PinkColor)
+
+	ProgressContainer = lipgloss.NewStyle().PaddingBottom(1)
+
+	SpeedStyle             = lipgloss.NewStyle().Foreground(MauveColor).Italic(true)
+	TimeRemainingStyle     = lipgloss.NewStyle().Foreground(PinkColor).Italic(true)
+	ProgressStyle          = lipgloss.NewStyle().Foreground(SecondaryColor)
+	DestinationStyle       = lipgloss.NewStyle().Foreground(MutedColor)
+	CompletionMessageStyle = lipgloss.NewStyle().Foreground(SuccessColor)
 )

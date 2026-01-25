@@ -1,7 +1,6 @@
 package models
 
 import (
-	"log"
 	"strings"
 	"xytz/internal/styles"
 	"xytz/internal/types"
@@ -14,6 +13,7 @@ type FormatListModel struct {
 	Width  int
 	Height int
 	List   list.Model
+	URL    string
 }
 
 func NewFormatListModel() FormatListModel {
@@ -43,7 +43,7 @@ func (m FormatListModel) View() string {
 
 	s.WriteString(styles.SectionHeaderStyle.Foreground(styles.MauveColor).Padding(1, 0).Render("Select a Format"))
 	s.WriteRune('\n')
-	s.WriteString(m.List.View())
+	s.WriteString(styles.ListContainer.Render(m.List.View()))
 
 	return s.String()
 }
@@ -55,7 +55,7 @@ func (m FormatListModel) HandleResize(w, h int) FormatListModel {
 	return m
 }
 
-func (m FormatListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m FormatListModel) Update(msg tea.Msg) (FormatListModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -63,7 +63,9 @@ func (m FormatListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			item := m.List.SelectedItem()
 			format := item.(types.FormatItem)
-			log.Printf("Selected format: %s", format.Title())
+			cmd = func() tea.Msg {
+				return types.StartDownloadMsg{URL: m.URL, FormatID: format.FormatValue}
+			}
 		}
 	}
 

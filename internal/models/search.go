@@ -53,7 +53,7 @@ func (m SearchModel) HandleResize(w, h int) SearchModel {
 	return m
 }
 
-func (m SearchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
