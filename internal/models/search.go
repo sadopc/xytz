@@ -1,19 +1,24 @@
 package models
 
 import (
+	"log"
 	"strings"
 	"xytz/internal/styles"
 	"xytz/internal/types"
+	"xytz/internal/utils"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type SearchModel struct {
-	Width        int
-	Height       int
-	Input        textinput.Model
-	Autocomplete SlashModel
+	Width         int
+	Height        int
+	Input         textinput.Model
+	Autocomplete  SlashModel
+	History       []string
+	HistoryIndex  int
+	OriginalQuery string
 }
 
 func NewSearchModel() SearchModel {
@@ -24,9 +29,18 @@ func NewSearchModel() SearchModel {
 	ti.PromptStyle = ti.PromptStyle.Foreground(styles.PinkColor)
 	ti.PlaceholderStyle = ti.PlaceholderStyle.Foreground(styles.MutedColor)
 
+	history, err := utils.LoadHistory()
+	if err != nil {
+		log.Printf("Failed to load history: %v", err)
+		history = []string{}
+	}
+
 	return SearchModel{
-		Input:        ti,
-		Autocomplete: NewSlashModel(),
+		Input:         ti,
+		Autocomplete:  NewSlashModel(),
+		History:       history,
+		HistoryIndex:  -1,
+		OriginalQuery: "",
 	}
 }
 
@@ -79,6 +93,24 @@ func parseSlashCommand(input string) (cmd string, args string, isSlashCommand bo
 	cmd = rest[:spaceIdx]
 	args = strings.TrimSpace(rest[spaceIdx:])
 	return cmd, args, true
+}
+
+func (m *SearchModel) navigateHistory(dir int) {
+	if m.HistoryIndex == -1 {
+		m.OriginalQuery = m.Input.Value()
+	}
+
+	newIndex := m.HistoryIndex + dir
+
+	if newIndex < 0 {
+		m.HistoryIndex = -1
+		m.Input.SetValue(m.OriginalQuery)
+	} else if newIndex >= len(m.History) {
+		m.HistoryIndex = len(m.History) - 1
+	} else {
+		m.HistoryIndex = newIndex
+		m.Input.SetValue(m.History[newIndex])
+	}
 }
 
 func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
@@ -140,6 +172,21 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 					return types.StartSearchMsg{Query: query}
 				}
 			}
+
+			if err := utils.AddToHistory(query); err != nil {
+				log.Printf("Failed to save history: %v", err)
+			}
+
+			m.HistoryIndex = -1
+			m.OriginalQuery = ""
+
+			history, err := utils.LoadHistory()
+			if err != nil {
+				log.Printf("Failed to reload history: %v", err)
+			} else {
+				m.History = history
+			}
+
 		case tea.KeyBackspace:
 			m.updateAutocompleteFilter()
 		case tea.KeyRunes:
@@ -148,6 +195,10 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 			} else if m.Autocomplete.Visible {
 				m.updateAutocompleteFilter()
 			}
+		case tea.KeyUp, tea.KeyCtrlP:
+			m.navigateHistory(1)
+		case tea.KeyDown, tea.KeyCtrlN:
+			m.navigateHistory(-1)
 		}
 	}
 
