@@ -6,9 +6,13 @@ import (
 	"xytz/internal/app"
 
 	tea "github.com/charmbracelet/bubbletea"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 func main() {
+	zone.NewGlobal()
+	defer zone.Close()
+
 	m := app.NewModel()
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	m.Program = p

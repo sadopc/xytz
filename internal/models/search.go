@@ -2,6 +2,8 @@ package models
 
 import (
 	"log"
+	"net/url"
+	"os/exec"
 	"strings"
 	"xytz/internal/styles"
 	"xytz/internal/types"
@@ -10,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 )
 
 type SearchModel struct {
@@ -63,8 +66,8 @@ func (m SearchModel) View() string {
 			lipgloss.Left,
 			lipgloss.NewStyle().Foreground(styles.SecondaryColor).Bold(true).Render("xytz *Youtube from your terminal*"),
 			lipgloss.NewStyle().Foreground(styles.SecondaryColor).Bold(true).Render("v0.2.0 alpha"),
-			lipgloss.NewStyle().Foreground(styles.MauveColor).Underline(true).Render("https://github.com/xdagiz/xytz")),
-		)))
+			zone.Mark("open_github", lipgloss.NewStyle().Foreground(styles.MauveColor).Underline(true).Render("https://github.com/xdagiz/xytz")),
+		))))
 	s.WriteRune('\n')
 
 	s.WriteString(styles.InputStyle.Render(m.Input.View()))
@@ -84,7 +87,7 @@ func (m SearchModel) View() string {
 	} else {
 		s.WriteRune('\n')
 		s.WriteString(styles.SortTitle.Render("Sort By"))
-		s.WriteString(styles.SortHelp.Render("(tab/shift+tab to cycle)"))
+		s.WriteString(styles.SortHelp.Render("(←/→ or tab to cycle)"))
 		s.WriteRune('\n')
 		currentSort := styles.SortItem.Render(">", m.SortBy.GetDisplayName())
 		s.WriteString(currentSort)
@@ -100,6 +103,22 @@ func (m SearchModel) HandleResize(w, h int) SearchModel {
 	m.Autocomplete.HandleResize(w, h)
 	m.Help.HandleResize(w)
 	return m
+}
+
+func (m *SearchModel) addToHistory(query string) {
+	if err := utils.AddToHistory(query); err != nil {
+		log.Printf("Failed to save history: %v", err)
+	}
+
+	m.HistoryIndex = -1
+	m.OriginalQuery = ""
+
+	history, err := utils.LoadHistory()
+	if err != nil {
+		log.Printf("Failed to reload history: %v", err)
+	} else {
+		m.History = history
+	}
 }
 
 func parseSlashCommand(input string) (cmd string, args string, isSlashCommand bool) {
@@ -139,6 +158,18 @@ func (m *SearchModel) navigateHistory(dir int) {
 }
 
 func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
+	if m.Help.Visible {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.Type {
+			case tea.KeyEsc:
+				m.Help.Hide()
+			}
+		}
+
+		m.Help, _ = m.Help.Update(msg)
+		return m, nil
+	}
+
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.Type {
 		case tea.KeyTab:
@@ -174,6 +205,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		if zone.Get("open_github").InBounds(msg) {
+			if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+				openGithub()
+			}
+		}
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
@@ -190,8 +228,11 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 						m.Input.SetValue("/channel ")
 						m.Input.CursorEnd()
 					} else {
+						m.addToHistory(query)
+						encodedChannel := url.QueryEscape(args)
+						channelURL := "https://www.youtube.com/@" + encodedChannel + "/videos"
 						cmd = func() tea.Msg {
-							return types.StartChannelSearchMsg{Channel: args}
+							return types.StartChannelURLMsg{URL: channelURL, ChannelName: args}
 						}
 					}
 				case "help":
@@ -204,33 +245,14 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 					}
 				}
 			} else {
-				if err := utils.AddToHistory(query); err != nil {
-					log.Printf("Failed to save history: %v", err)
-				}
-
-				m.HistoryIndex = -1
-				m.OriginalQuery = ""
-
-				history, err := utils.LoadHistory()
-				if err != nil {
-					log.Printf("Failed to reload history: %v", err)
-				} else {
-					m.History = history
-				}
-
+				m.addToHistory(query)
 				cmd = func() tea.Msg {
 					return types.StartSearchMsg{Query: query}
 				}
 			}
 		case tea.KeyBackspace:
 			m.updateAutocompleteFilter()
-			if m.Help.Visible {
-				m.Help.Hide()
-			}
 		case tea.KeyRunes:
-			if m.Help.Visible {
-				m.Help.Hide()
-			}
 			if string(msg.Runes) == "/" && !m.Autocomplete.Visible {
 				m.Autocomplete.Show("/")
 			} else if m.Autocomplete.Visible {
@@ -248,16 +270,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		case tea.KeyShiftTab, tea.KeyRight:
 			m.SortBy = m.SortBy.Prev()
 			return m, nil
+		case tea.KeyCtrlO:
+			openGithub()
 		}
 	}
 
 	var inputCmd tea.Cmd
 	m.Input, inputCmd = m.Input.Update(msg)
-
-	var helpCmd tea.Cmd
-	if m.Help.Visible {
-		m.Help, helpCmd = m.Help.Update(msg)
-	}
 
 	if m.Autocomplete.Visible {
 		currentValue := m.Input.Value()
@@ -268,7 +287,7 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		}
 	}
 
-	return m, tea.Batch(cmd, inputCmd, autocompleteCmd, helpCmd)
+	return m, tea.Batch(cmd, inputCmd, autocompleteCmd)
 }
 
 func (m *SearchModel) executeSlashCommand(cmd string, args string) {
@@ -309,4 +328,12 @@ func (m *SearchModel) completeAutocomplete() {
 		m.Input.CursorEnd()
 		m.Autocomplete.Hide()
 	}
+}
+
+func openGithub() {
+	go func() {
+		if err := exec.Command("xdg-open", types.GithubRepoLink).Start(); err != nil {
+			log.Printf("Failed to open URL: %v", err)
+		}
+	}()
 }

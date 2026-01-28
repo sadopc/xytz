@@ -2,6 +2,8 @@ package types
 
 import "github.com/charmbracelet/bubbles/list"
 
+const GithubRepoLink = "https://github.com/xdagiz/xytz"
+
 type State string
 
 const (
@@ -81,6 +83,9 @@ type ResumeDownloadMsg struct{}
 
 type CancelDownloadMsg struct{}
 
-type StartChannelSearchMsg struct {
-	Channel string
+type StartChannelURLMsg struct {
+	URL         string
+	ChannelName string
 }
+
+type BackFromVideoListMsg struct{}

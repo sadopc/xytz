@@ -71,3 +71,7 @@ func (m FormatListModel) Update(msg tea.Msg) (FormatListModel, tea.Cmd) {
 	m.List, listCmd = m.List.Update(msg)
 	return m, tea.Batch(cmd, listCmd)
 }
+
+func (m *FormatListModel) ClearSelection() {
+	m.List.Select(-1)
+}

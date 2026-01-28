@@ -27,6 +27,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = types.StateLoading
 		m.LoadingType = "search"
 		m.CurrentQuery = strings.TrimSpace(msg.Query)
+		m.VideoList.IsChannelSearch = false
+		m.VideoList.ChannelName = ""
 		cmd = utils.PerformSearch(msg.Query, m.Search.SortBy.GetSPParam())
 		m.ErrMsg = ""
 	case types.StartFormatMsg:
@@ -40,6 +42,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Videos = msg.Videos
 		m.VideoList.List.SetItems(msg.Videos)
 		m.VideoList.CurrentQuery = m.CurrentQuery
+		m.VideoList.ErrMsg = msg.Err
 		m.State = types.StateVideoList
 		m.ErrMsg = msg.Err
 		return m, nil
@@ -81,13 +84,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Download.Cancelled = true
 		m.ErrMsg = "Download cancelled"
 		return m, nil
-	case types.StartChannelSearchMsg:
+	case types.StartChannelURLMsg:
 		m.State = types.StateLoading
 		m.LoadingType = "channel_search"
-		m.CurrentQuery = msg.Channel
-		cmd = utils.PerformSearch(msg.Channel, m.Search.SortBy.GetSPParam())
+		m.CurrentQuery = msg.URL
+		m.VideoList.IsChannelSearch = true
+		m.VideoList.ChannelName = msg.ChannelName
+		cmd = utils.PerformChannelSearch(msg.URL)
 		m.ErrMsg = ""
 		return m, cmd
+	case types.BackFromVideoListMsg:
+		m.State = types.StateSearchInput
+		m.ErrMsg = ""
+		m.VideoList.List.ResetSelected()
+		m.VideoList.ErrMsg = ""
+		return m, nil
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
@@ -101,6 +112,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "b":
 				m.State = types.StateSearchInput
 				m.ErrMsg = ""
+				m.VideoList.List.ResetSelected()
 				return m, nil
 			}
 			m.VideoList, cmd = m.VideoList.Update(msg)
@@ -109,6 +121,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "b":
 				m.State = types.StateVideoList
 				m.ErrMsg = ""
+				m.FormatList.List.ResetSelected()
 				return m, nil
 			}
 			m.FormatList, cmd = m.FormatList.Update(msg)
@@ -117,10 +130,16 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "b":
 				if m.Download.Completed || m.Download.Cancelled {
 					m.State = types.StateFormatList
+					m.FormatList.List.ResetSelected()
 				}
 				m.ErrMsg = ""
 				return m, nil
 			}
+		}
+	case tea.MouseMsg:
+		switch m.State {
+		case types.StateSearchInput:
+			m.Search, cmd = m.Search.Update(msg)
 		}
 	}
 

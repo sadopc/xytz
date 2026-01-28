@@ -7,7 +7,66 @@ import (
 	"xytz/internal/types"
 
 	"github.com/charmbracelet/lipgloss"
+	zone "github.com/lrstanley/bubblezone"
 )
+
+const (
+	statusQuit              = "Ctrl+C/q: quit"
+	statusBack              = "b: Back"
+	statusEnterBack         = "Enter: Back"
+	statusEnterBackToSearch = "Enter: Back to Search"
+	statusPauseResume       = "p: Pause/Resume"
+	statusPause             = "p: Pause"
+	statusResume            = "p: Resume"
+	statusCancel            = "c: Cancel"
+	statusEscCancel         = "Esc to cancel"
+)
+
+type StatusBarConfig struct {
+	HasError    bool
+	HelpVisible bool
+	IsPaused    bool
+	IsCompleted bool
+	IsCancelled bool
+}
+
+func getStatusBarText(state types.State, cfg StatusBarConfig) string {
+	baseQuit := statusQuit
+
+	switch state {
+	case types.StateSearchInput:
+		if cfg.HelpVisible {
+			return styles.StatusBarStyle.Italic(true).Render(statusEscCancel)
+		}
+		return "Ctrl+C: quit"
+	case types.StateVideoList:
+		if cfg.HasError {
+			return joinStatus(baseQuit, statusEnterBack)
+		}
+		return joinStatus(baseQuit, statusBack)
+	case types.StateFormatList:
+		return joinStatus(baseQuit, statusBack)
+	case types.StateDownload:
+		if cfg.IsCompleted || cfg.IsCancelled {
+			return joinStatus(baseQuit, statusBack, statusEnterBackToSearch)
+		}
+		if cfg.IsPaused {
+			return joinStatus(baseQuit, statusResume, statusCancel)
+		}
+		return joinStatus(baseQuit, statusPause, statusCancel)
+	default:
+		return baseQuit
+	}
+}
+
+func joinStatus(parts ...string) string {
+	const separator = " • "
+	result := parts[0]
+	for i := 1; i < len(parts); i++ {
+		result += separator + parts[i]
+	}
+	return result
+}
 
 func (m *Model) View() string {
 	if m.Width == 0 || m.Height == 0 {
@@ -28,27 +87,15 @@ func (m *Model) View() string {
 		content = m.Download.View()
 	}
 
-	var left string
-	switch m.State {
-	case types.StateSearchInput:
-		if m.Search.Help.Visible {
-			left = styles.StatusBarStyle.Italic(true).Render("Esc to cancel")
-		} else {
-			left = "Ctrl+C: quit"
-		}
-	case types.StateVideoList, types.StateFormatList:
-		left = "Ctrl+C/q: quit • b: Back"
-	case types.StateDownload:
-		if m.Download.Completed || m.Download.Cancelled {
-			left = "Ctrl+C/q: quit • b: Back • Enter: Back to Search"
-		} else if m.Download.Paused {
-			left = "Ctrl+C/q: quit • p: Resume • c: Cancel"
-		} else {
-			left = "Ctrl+C/q: quit • p: Pause • c: Cancel"
-		}
-	default:
-		left = "Ctrl+C/q: quit"
+	statusCfg := StatusBarConfig{
+		HasError:    m.VideoList.ErrMsg != "",
+		HelpVisible: m.Search.Help.Visible,
+		IsPaused:    m.Download.Paused,
+		IsCompleted: m.Download.Completed,
+		IsCancelled: m.Download.Cancelled,
 	}
+
+	left := getStatusBarText(m.State, statusCfg)
 
 	right := ""
 	if m.ErrMsg != "" {
@@ -62,7 +109,7 @@ func (m *Model) View() string {
 		statusBar = styles.StatusBarStyle.Height(1).Width(m.Width).Render(left)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Top, content, statusBar)
+	return zone.Scan(lipgloss.JoinVertical(lipgloss.Top, content, statusBar))
 }
 
 func (m *Model) LoadingView() string {
@@ -75,7 +122,7 @@ func (m *Model) LoadingView() string {
 	case "format":
 		loadingText = "Fetching formats..."
 	case "channel_search":
-		loadingText = fmt.Sprintf("Fetching videos for channel \"%s\"", m.CurrentQuery)
+		loadingText = fmt.Sprintf("Fetching videos for channel @%s", m.VideoList.ChannelName)
 	}
 
 	fmt.Fprintf(&s, "\n%s %s\n", m.Spinner.View(), loadingText)

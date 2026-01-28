@@ -16,7 +16,7 @@ type Command struct {
 var AllCommands = []Command{
 	{
 		Name:        "channel",
-		Description: "Search videos from a specific channel",
+		Description: "List videos from a specific channel using @username/videos",
 		Usage:       "/channel <username>",
 		HasArg:      true,
 	},

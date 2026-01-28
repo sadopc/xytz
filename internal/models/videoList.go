@@ -1,19 +1,24 @@
 package models
 
 import (
+	"fmt"
 	"strings"
 	"xytz/internal/styles"
 	"xytz/internal/types"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type VideoListModel struct {
-	Width        int
-	Height       int
-	List         list.Model
-	CurrentQuery string
+	Width           int
+	Height          int
+	List            list.Model
+	CurrentQuery    string
+	IsChannelSearch bool
+	ChannelName     string
+	ErrMsg          string
 }
 
 func NewVideoListModel() VideoListModel {
@@ -29,7 +34,12 @@ func NewVideoListModel() VideoListModel {
 	li.FilterInput.Cursor.Style = li.FilterInput.Cursor.Style.Foreground(styles.PinkColor)
 	li.FilterInput.PromptStyle = li.FilterInput.PromptStyle.Foreground(styles.SecondaryColor)
 
-	return VideoListModel{List: li}
+	return VideoListModel{
+		List:            li,
+		IsChannelSearch: false,
+		ChannelName:     "",
+		ErrMsg:          "",
+	}
 }
 
 func (m VideoListModel) Init() tea.Cmd {
@@ -39,7 +49,20 @@ func (m VideoListModel) Init() tea.Cmd {
 func (m VideoListModel) View() string {
 	var s strings.Builder
 
-	s.WriteString(styles.SectionHeaderStyle.Render("Search Results for: " + m.CurrentQuery))
+	var headerText string
+	var headerStyle lipgloss.Style
+
+	if m.ErrMsg != "" {
+		headerText = fmt.Sprintf("Channel not found: @%s", m.ChannelName)
+		headerStyle = styles.ErrorMessageStyle.PaddingTop(1)
+	} else if m.IsChannelSearch {
+		headerText = fmt.Sprintf("Videos for channel @%s", m.ChannelName)
+		headerStyle = styles.SectionHeaderStyle
+	} else {
+		headerText = fmt.Sprintf("Search Results for: %s", m.CurrentQuery)
+		headerStyle = styles.SectionHeaderStyle
+	}
+	s.WriteString(headerStyle.Render(headerText))
 	s.WriteRune('\n')
 	s.WriteString(styles.ListContainer.Render(m.List.View()))
 
@@ -59,7 +82,11 @@ func (m VideoListModel) Update(msg tea.Msg) (VideoListModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			if video, ok := m.List.SelectedItem().(types.VideoItem); ok {
+			if m.ErrMsg != "" {
+				cmd = func() tea.Msg {
+					return types.BackFromVideoListMsg{}
+				}
+			} else if video, ok := m.List.SelectedItem().(types.VideoItem); ok {
 				url := "https://www.youtube.com/watch?v=" + video.ID
 				cmd = func() tea.Msg {
 					return types.StartFormatMsg{URL: url}
