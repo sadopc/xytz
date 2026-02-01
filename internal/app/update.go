@@ -72,7 +72,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Download.CurrentETA = ""
 		m.Download.SelectedVideo = m.SelectedVideo
 		m.LoadingType = "download"
-		cmd = utils.StartDownload(m.Program, msg.URL, msg.FormatID, msg.DownloadOptions)
+		cmd = utils.StartDownload(m.Program, msg.URL, msg.FormatID, m.SelectedVideo.Title(), m.Search.DownloadOptions)
+		return m, cmd
+	case types.StartResumeDownloadMsg:
+		m.State = types.StateDownload
+		m.Download.Progress.SetPercent(0.0)
+		m.Download.Completed = false
+		m.Download.CurrentSpeed = ""
+		m.Download.CurrentETA = ""
+		m.Download.SelectedVideo = types.VideoItem{VideoTitle: msg.Title}
+		m.LoadingType = "download"
+		cmd = utils.StartDownload(m.Program, msg.URL, msg.FormatID, msg.Title, m.Search.DownloadOptions)
 		return m, cmd
 	case types.DownloadResultMsg:
 		m.LoadingType = ""
@@ -154,7 +164,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Search, cmd = m.Search.Update(msg)
 		case types.StateVideoList:
 			switch msg.String() {
-			case "b":
+			case "b", "esc":
 				m.State = types.StateSearchInput
 				m.ErrMsg = ""
 				m.VideoList.List.ResetSelected()
@@ -165,7 +175,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case types.StateFormatList:
 			if m.FormatList.ActiveTab != models.FormatTabCustom {
 				switch msg.String() {
-				case "b":
+				case "b", "esc":
 					m.State = types.StateVideoList
 					m.ErrMsg = ""
 					m.FormatList.List.ResetSelected()

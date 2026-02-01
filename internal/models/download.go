@@ -70,13 +70,13 @@ func (m DownloadModel) Update(msg tea.Msg) (DownloadModel, tea.Cmd) {
 		}
 		if !m.Completed && !m.Cancelled {
 			switch msg.String() {
-			case "p":
+			case "p", " ":
 				if m.Paused {
 					cmd = utils.ResumeDownload()
 				} else {
 					cmd = utils.PauseDownload()
 				}
-			case "c":
+			case "c", "esc":
 				cmd = utils.CancelDownload()
 			}
 		}

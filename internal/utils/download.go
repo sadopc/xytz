@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/xdagiz/xytz/internal/config"
 	"github.com/xdagiz/xytz/internal/types"
@@ -23,8 +24,19 @@ var (
 	isPaused      bool
 )
 
-func StartDownload(program *tea.Program, url, formatID string, options []types.DownloadOption) tea.Cmd {
+func StartDownload(program *tea.Program, url, formatID string, title string, options []types.DownloadOption) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
+		unfinished := UnfinishedDownload{
+			URL:       url,
+			FormatID:  formatID,
+			Title:     title,
+			Timestamp: time.Now(),
+		}
+
+		if err := AddUnfinished(unfinished); err != nil {
+			log.Printf("Failed to add to unfinished list: %v", err)
+		}
+
 		cfg, err := config.Load()
 		if err != nil {
 			cfg = config.GetDefault()
@@ -166,6 +178,10 @@ func doDownload(program *tea.Program, url, formatID, outputPath, ytDlpPath strin
 		errMsg := fmt.Sprintf("Download error: %v", err)
 		program.Send(types.DownloadResultMsg{Err: errMsg})
 	} else {
+		if err := RemoveUnfinished(url); err != nil {
+			log.Printf("Failed to remove from unfinished list: %v", err)
+		}
+
 		program.Send(types.DownloadResultMsg{Output: "Download complete"})
 	}
 }

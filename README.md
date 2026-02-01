@@ -42,11 +42,11 @@ If you have Go installed, you can install directly:
 go install github.com/xdagiz/xytz@latest
 ```
 
+### 3. Build from Source
+
 **Requirements:**
 
 - **Go 1.25+** - For building from source
-
-### 3. Build from Source
 
 ```bash
 # Clone the repository

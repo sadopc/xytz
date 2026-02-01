@@ -13,12 +13,12 @@ import (
 
 const (
 	statusQuit              = "Ctrl+C/q: quit"
-	statusBack              = "b: Back"
+	statusBack              = "Esc/b: Back"
 	statusEnterBack         = "Enter: Back"
 	statusEnterBackToSearch = "Enter: Back to Search"
-	statusPause             = "p: Pause"
-	statusResume            = "p: Resume"
-	statusCancel            = "c: Cancel"
+	statusPause             = "␣ / p: Pause"
+	statusResume            = "␣ / p: Resume"
+	statusCancel            = "Esc or c: Cancel"
 	statusEscCancel         = "Esc to cancel"
 )
 
@@ -36,7 +36,7 @@ func getStatusBarText(state types.State, cfg StatusBarConfig) string {
 	switch state {
 	case types.StateSearchInput:
 		if cfg.HelpVisible {
-			return styles.StatusBarStyle.Italic(true).Render(statusEscCancel)
+			return styles.StatusBarStyle.Padding(0).Italic(true).Render(statusEscCancel)
 		}
 		return "Ctrl+C: quit"
 	case types.StateVideoList:
@@ -61,11 +61,14 @@ func getStatusBarText(state types.State, cfg StatusBarConfig) string {
 
 func joinStatus(parts ...string) string {
 	const separator = " • "
+
 	var result strings.Builder
+
 	result.WriteString(parts[0])
 	for i := 1; i < len(parts); i++ {
 		result.WriteString(separator + parts[i])
 	}
+
 	return result.String()
 }
 

@@ -27,6 +27,12 @@ var AllCommands = []Command{
 		HasArg:      true,
 	},
 	{
+		Name:        "resume",
+		Description: "Resume unfinished download",
+		Usage:       "/resume",
+		HasArg:      false,
+	},
+	{
 		Name:        "help",
 		Description: "Show available commands",
 		Usage:       "/help",

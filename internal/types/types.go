@@ -12,6 +12,7 @@ const (
 	StateVideoList   = "video_list"
 	StateFormatList  = "format_list"
 	StateDownload    = "download"
+	StateResumeList  = "resume_list"
 )
 
 type StartSearchMsg struct {
@@ -91,6 +92,12 @@ type ResumeDownloadMsg struct{}
 
 type CancelDownloadMsg struct{}
 
+type StartResumeDownloadMsg struct {
+	URL      string
+	FormatID string
+	Title    string
+}
+
 type StartChannelURLMsg struct {
 	URL         string
 	ChannelName string
@@ -101,3 +108,4 @@ type StartPlaylistURLMsg struct {
 }
 
 type BackFromVideoListMsg struct{}
+

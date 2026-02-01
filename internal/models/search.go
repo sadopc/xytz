@@ -23,6 +23,7 @@ type SearchModel struct {
 	Height          int
 	Input           textinput.Model
 	Autocomplete    SlashModel
+	ResumeList      ResumeModel
 	Help            HelpModel
 	History         []string
 	HistoryIndex    int
@@ -65,6 +66,7 @@ func NewSearchModel() SearchModel {
 	return SearchModel{
 		Input:           ti,
 		Autocomplete:    NewSlashModel(),
+		ResumeList:      NewResumeModel(),
 		Help:            NewHelpModel(),
 		History:         history,
 		HistoryIndex:    -1,
@@ -100,6 +102,12 @@ func (m SearchModel) View() string {
 		if autocompleteView != "" {
 			s.WriteString("\n")
 			s.WriteString(autocompleteView)
+		}
+	} else if m.ResumeList.Visible {
+		resumeView := m.ResumeList.View(m.Width, m.Height)
+		if resumeView != "" {
+			s.WriteString("\n")
+			s.WriteString(resumeView)
 		}
 	} else if m.Help.Visible {
 		helpView := m.Help.View()
@@ -144,6 +152,7 @@ func (m SearchModel) HandleResize(w, h int) SearchModel {
 	m.Input.Width = w - 4
 	m.Autocomplete.HandleResize(w, h)
 	m.Help.HandleResize(w)
+	m.ResumeList.HandleResize(w, h)
 	return m
 }
 
@@ -220,6 +229,10 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 				return m, nil
 			}
 		case tea.KeyEsc:
+			if m.ResumeList.Visible {
+				m.ResumeList.Hide()
+				return m, nil
+			}
 			m.Help.Hide()
 		}
 	}
@@ -257,6 +270,21 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
+			if m.ResumeList.Visible {
+				if item := m.ResumeList.SelectedItem(); item != nil {
+					m.ResumeList.Hide()
+					cmd = func() tea.Msg {
+						return types.StartResumeDownloadMsg{
+							URL:      item.URL,
+							FormatID: item.FormatID,
+							Title:    item.Title,
+						}
+					}
+
+					return m, cmd
+				}
+			}
+
 			query := m.Input.Value()
 			if query == "" {
 				break
@@ -285,10 +313,6 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 							return types.StartPlaylistURLMsg{Query: args}
 						}
 					}
-				case "help":
-					m.Help.Toggle()
-					m.Input.SetValue("")
-					return m, nil
 				default:
 					cmd = func() tea.Msg {
 						return types.StartSearchMsg{Query: query}
@@ -309,11 +333,15 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 				m.updateAutocompleteFilter()
 			}
 		case tea.KeyUp, tea.KeyCtrlP:
-			m.navigateHistory(1)
-			m.Input.CursorEnd()
+			if !m.ResumeList.Visible {
+				m.navigateHistory(1)
+				m.Input.CursorEnd()
+			}
 		case tea.KeyDown, tea.KeyCtrlN:
-			m.navigateHistory(-1)
-			m.Input.CursorEnd()
+			if !m.ResumeList.Visible {
+				m.navigateHistory(-1)
+				m.Input.CursorEnd()
+			}
 		case tea.KeyTab:
 			m.SortBy = m.SortBy.Next()
 			return m, nil
@@ -357,6 +385,10 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		}
 	}
 
+	if m.ResumeList.Visible {
+		m.ResumeList.Update(msg)
+	}
+
 	return m, tea.Batch(cmd, inputCmd, autocompleteCmd)
 }
 
@@ -367,6 +399,9 @@ func (m *SearchModel) executeSlashCommand(cmd string, args string) {
 			m.Input.SetValue("/channel ")
 			m.Input.CursorEnd()
 		}
+	case "resume":
+		m.ResumeList.Show()
+		m.Input.SetValue("")
 	case "help":
 		m.Help.Toggle()
 		m.Input.SetValue("")
