@@ -14,6 +14,7 @@ import (
 type HelpModel struct {
 	Visible   bool
 	Width     int
+	Height    int
 	ActiveTab int
 	Tabs      []HelpTab
 	TabStyles tabStyles

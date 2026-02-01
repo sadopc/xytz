@@ -32,7 +32,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.LoadingType = "search"
 		m.CurrentQuery = strings.TrimSpace(msg.Query)
 		m.VideoList.IsChannelSearch = false
+		m.VideoList.IsPlaylistSearch = false
 		m.VideoList.ChannelName = ""
+		m.VideoList.PlaylistName = ""
+		m.VideoList.PlaylistURL = ""
 		cmd = utils.PerformSearch(msg.Query, m.Search.SortBy.GetSPParam())
 		m.ErrMsg = ""
 	case types.StartFormatMsg:
@@ -97,7 +100,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = types.StateLoading
 		m.LoadingType = "channel"
 		m.VideoList.IsChannelSearch = true
+		m.VideoList.IsPlaylistSearch = false
 		m.VideoList.ChannelName = msg.ChannelName
+		m.VideoList.PlaylistURL = ""
 		cmd = utils.PerformChannelSearch(msg.ChannelName)
 		m.ErrMsg = ""
 		return m, cmd
@@ -105,6 +110,25 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.State = types.StateLoading
 		m.LoadingType = "playlist"
 		m.CurrentQuery = strings.TrimSpace(msg.Query)
+		m.VideoList.IsPlaylistSearch = true
+		m.VideoList.IsChannelSearch = false
+		m.VideoList.PlaylistName = strings.TrimSpace(msg.Query)
+		if strings.Contains(msg.Query, "https://www.youtube.com/playlist?list=") {
+			m.VideoList.PlaylistURL = msg.Query
+		} else if strings.Contains(msg.Query, "watch?v=") && strings.Contains(msg.Query, "list=") {
+			parts := strings.Split(msg.Query, "list=")
+			if len(parts) > 1 {
+				playlistID := parts[1]
+				if idx := strings.Index(playlistID, "&"); idx != -1 {
+					playlistID = playlistID[:idx]
+				}
+				m.VideoList.PlaylistURL = "https://www.youtube.com/playlist?list=" + playlistID
+			} else {
+				m.VideoList.PlaylistURL = "https://www.youtube.com/playlist?list=" + msg.Query
+			}
+		} else {
+			m.VideoList.PlaylistURL = "https://www.youtube.com/playlist?list=" + msg.Query
+		}
 		cmd = utils.PerformPlaylistSearch(msg.Query)
 		m.ErrMsg = ""
 		return m, cmd
@@ -114,6 +138,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SelectedVideo = types.VideoItem{}
 		m.VideoList.List.ResetSelected()
 		m.VideoList.ErrMsg = ""
+		m.VideoList.PlaylistURL = ""
 		return m, nil
 	case tea.KeyMsg:
 		switch msg.Type {
@@ -132,6 +157,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.State = types.StateSearchInput
 				m.ErrMsg = ""
 				m.VideoList.List.ResetSelected()
+				m.VideoList.PlaylistURL = ""
 				return m, nil
 			}
 			m.VideoList, cmd = m.VideoList.Update(msg)

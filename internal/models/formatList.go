@@ -50,7 +50,8 @@ func NewFormatListModel() FormatListModel {
 	li := list.New([]list.Item{}, fd, 0, 0)
 	li.SetShowStatusBar(false)
 	li.SetShowTitle(false)
-	li.FilterInput.Cursor.Style = li.FilterInput.Cursor.Style.Foreground(styles.PinkColor)
+	li.SetShowHelp(false)
+	li.FilterInput.Cursor.Style = li.FilterInput.Cursor.Style.Foreground(styles.MauveColor)
 	li.FilterInput.PromptStyle = li.FilterInput.PromptStyle.Foreground(styles.SecondaryColor)
 
 	ti := textinput.New()

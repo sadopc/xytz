@@ -13,13 +13,16 @@ import (
 )
 
 type VideoListModel struct {
-	Width           int
-	Height          int
-	List            list.Model
-	CurrentQuery    string
-	IsChannelSearch bool
-	ChannelName     string
-	ErrMsg          string
+	Width            int
+	Height           int
+	List             list.Model
+	CurrentQuery     string
+	IsChannelSearch  bool
+	IsPlaylistSearch bool
+	ChannelName      string
+	PlaylistName     string
+	PlaylistURL      string
+	ErrMsg           string
 }
 
 func NewVideoListModel() VideoListModel {
@@ -31,14 +34,18 @@ func NewVideoListModel() VideoListModel {
 	li := list.New([]list.Item{}, vd, 0, 0)
 	li.SetShowStatusBar(false)
 	li.SetShowTitle(false)
+	li.SetShowHelp(false)
 	li.FilterInput.Cursor.Style = li.FilterInput.Cursor.Style.Foreground(styles.MauveColor)
 	li.FilterInput.PromptStyle = li.FilterInput.PromptStyle.Foreground(styles.SecondaryColor)
 
 	return VideoListModel{
-		List:            li,
-		IsChannelSearch: false,
-		ChannelName:     "",
-		ErrMsg:          "",
+		List:             li,
+		IsChannelSearch:  false,
+		IsPlaylistSearch: false,
+		ChannelName:      "",
+		PlaylistName:     "",
+		PlaylistURL:      "",
+		ErrMsg:           "",
 	}
 }
 
@@ -56,11 +63,18 @@ func (m VideoListModel) View() string {
 		headerStyle = styles.ErrorMessageStyle.PaddingTop(1)
 		if strings.Contains(m.ErrMsg, "Channel not found") {
 			headerText = fmt.Sprintf("Channel not found: @%s", m.ChannelName)
+		} else if strings.Contains(m.ErrMsg, "Playlist not found") {
+			headerText = fmt.Sprintf("Playlist not found: %s", m.PlaylistName)
+		} else if strings.Contains(m.ErrMsg, "private") {
+			headerText = fmt.Sprintf("Private playlist: %s", m.PlaylistName)
 		} else {
 			headerText = fmt.Sprintf("An Error Occured: %s", m.ErrMsg)
 		}
 	} else if m.IsChannelSearch {
 		headerText = fmt.Sprintf("Videos for channel @%s", m.ChannelName)
+		headerStyle = styles.SectionHeaderStyle
+	} else if m.IsPlaylistSearch {
+		headerText = fmt.Sprintf("Playlist: %s", m.PlaylistName)
 		headerStyle = styles.SectionHeaderStyle
 	} else {
 		headerText = fmt.Sprintf("Search Results for: %s", m.CurrentQuery)
@@ -97,7 +111,27 @@ func (m VideoListModel) Update(msg tea.Msg) (VideoListModel, tea.Cmd) {
 			} else if len(m.List.Items()) == 0 {
 				return m, nil
 			} else if video, ok := m.List.SelectedItem().(types.VideoItem); ok {
-				url := "https://www.youtube.com/watch?v=" + video.ID
+				var url string
+				if m.IsPlaylistSearch && m.PlaylistURL != "" {
+					playlistID := ""
+					if strings.Contains(m.PlaylistURL, "list=") {
+						parts := strings.Split(m.PlaylistURL, "list=")
+						if len(parts) > 1 {
+							playlistID = parts[1]
+							if idx := strings.Index(playlistID, "&"); idx != -1 {
+								playlistID = playlistID[:idx]
+							}
+						}
+					}
+
+					if playlistID != "" {
+						url = fmt.Sprintf("https://www.youtube.com/watch?v=%s&list=%s", video.ID, playlistID)
+					} else {
+						url = "https://www.youtube.com/watch?v=" + video.ID
+					}
+				} else {
+					url = "https://www.youtube.com/watch?v=" + video.ID
+				}
 				cmd = func() tea.Msg {
 					return types.StartFormatMsg{URL: url, SelectedVideo: video}
 				}

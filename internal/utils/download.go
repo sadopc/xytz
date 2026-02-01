@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/xdagiz/xytz/internal/config"
@@ -63,16 +64,29 @@ func doDownload(program *tea.Program, url, formatID, outputPath, ytDlpPath strin
 		ytDlpPath = "yt-dlp"
 	}
 
+	if url == "" {
+		log.Printf("download error: empty URL provided")
+		program.Send(types.DownloadResultMsg{Err: "Download error: empty URL provided"})
+		return
+	}
+
+	log.Printf("Starting download for URL: %s", url)
+
+	isPlaylist := strings.Contains(url, "/playlist?list=") || strings.Contains(url, "&list=")
+
 	args := []string{
 		"-f",
 		formatID,
-		"--no-playlist",
 		"--newline",
 		"-R",
 		"infinite",
 		"-o",
 		fmt.Sprintf("%s/%s", outputPath, "%(title)s.%(ext)s"),
 		url,
+	}
+
+	if !isPlaylist {
+		args = append([]string{"--no-playlist"}, args...)
 	}
 
 	for _, opt := range options {

@@ -103,7 +103,15 @@ func executeYTDLP(searchURL string) types.SearchResultMsg {
 			if strings.Contains(line, "[Errno 101]") || strings.Contains(line, "[Errno -3]") {
 				errMsg = "Please Check Your Internet connection"
 			} else if strings.Contains(line, "HTTP Error 404") || strings.Contains(line, "Requested entity was not found") {
-				errMsg = "Channel not found"
+				if strings.Contains(searchURL, "/playlist?list=") {
+					errMsg = "Playlist not found"
+				} else {
+					errMsg = "Channel not found"
+				}
+			} else if strings.Contains(line, "Private playlist") || strings.Contains(line, "This playlist is private") {
+				errMsg = "This playlist is private"
+			} else if strings.Contains(line, "Playlist does not exist") {
+				errMsg = "Playlist does not exist"
 			}
 		}
 		return types.SearchResultMsg{Err: errMsg}
@@ -141,16 +149,25 @@ func PerformChannelSearch(username string) tea.Cmd {
 
 func PerformPlaylistSearch(query string) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
-		log.Printf("searching for playlist: %s", query)
 		var playlistURL string
-		if strings.Contains(query, "https://www.youtube.com/list=") {
-			log.Printf("playlist with url: %s", query)
+
+		if strings.Contains(query, "https://www.youtube.com/playlist?list=") {
 			playlistURL = query
+		} else if strings.Contains(query, "watch?v=") && strings.Contains(query, "list=") {
+			parts := strings.Split(query, "list=")
+			if len(parts) > 1 {
+				playlistID := parts[1]
+				if idx := strings.Index(playlistID, "&"); idx != -1 {
+					playlistID = playlistID[:idx]
+				}
+				playlistURL = "https://www.youtube.com/playlist?list=" + playlistID
+			} else {
+				playlistURL = "https://www.youtube.com/playlist?list=" + query
+			}
 		} else {
-			log.Printf("playlist without url: %s", query)
-			encodedPlaylist := url.QueryEscape(query)
-			playlistURL = "https://www.youtube.com/list=" + encodedPlaylist
+			playlistURL = "https://www.youtube.com/playlist?list=" + query
 		}
+
 		return executeYTDLP(playlistURL)
 	})
 }
