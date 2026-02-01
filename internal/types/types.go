@@ -24,9 +24,11 @@ type StartFormatMsg struct {
 }
 
 type ProgressMsg struct {
-	Percent float64
-	Speed   string
-	Eta     string
+	Percent     float64
+	Speed       string
+	Eta         string
+	Status      string
+	Destination string
 }
 
 type VideoItem struct {

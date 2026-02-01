@@ -134,8 +134,8 @@ func doDownload(program *tea.Program, url, formatID, outputPath, ytDlpPath strin
 
 	parser := NewProgressParser()
 	readPipe := func(pipe io.Reader) {
-		parser.ReadPipe(pipe, func(percent float64, speed, eta string) {
-			program.Send(types.ProgressMsg{Percent: percent, Speed: speed, Eta: eta})
+		parser.ReadPipe(pipe, func(percent float64, speed, eta, status, destination string) {
+			program.Send(types.ProgressMsg{Percent: percent, Speed: speed, Eta: eta, Status: status, Destination: destination})
 		})
 	}
 

@@ -53,6 +53,50 @@ func formatQuality(resolution string) string {
 	}
 }
 
+func getPreferredAudioFormat(formatsAny []any) (audioID string, audioLang string) {
+	hasFormat140 := false
+	hasFormat251 := false
+	audioID = "140"
+	audioLang = ""
+
+	for _, fAny := range formatsAny {
+		f, ok := fAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		formatID, _ := f["format_id"].(string)
+		if formatID == "140" {
+			hasFormat140 = true
+		}
+		if formatID == "251" {
+			hasFormat251 = true
+		}
+	}
+
+	if !hasFormat140 && hasFormat251 {
+		audioID = "251"
+	}
+
+	for _, fAny := range formatsAny {
+		f, ok := fAny.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		formatID, _ := f["format_id"].(string)
+		if formatID == audioID {
+			audioLang, _ = f["language"].(string)
+			if audioLang == "" {
+				audioLang, _ = f["lang"].(string)
+			}
+
+			break
+		}
+	}
+
+	return audioID, audioLang
+}
+
 func FetchFormats(url string) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		cfg, err := config.Load()
@@ -203,7 +247,6 @@ func FetchFormats(url string) tea.Cmd {
 			allFormats = append(allFormats, formatItem)
 
 			if isVideoAudio {
-				// Filter out formats below 360p (144p and 240p)
 				if !strings.Contains(title, "144p") && !strings.Contains(title, "240p") {
 					videoFormats = append(videoFormats, formatItem)
 				}
@@ -211,6 +254,58 @@ func FetchFormats(url string) tea.Cmd {
 				audioFormats = append(audioFormats, formatItem)
 			} else if isThumbnail {
 				thumbnailFormats = append(thumbnailFormats, formatItem)
+			}
+		}
+
+		audioID, audioLang := getPreferredAudioFormat(formatsAny)
+
+		for _, fAny := range formatsAny {
+			f, ok := fAny.(map[string]any)
+			if !ok {
+				continue
+			}
+			formatID, _ := f["format_id"].(string)
+			vcodec, _ := f["vcodec"].(string)
+			acodec, _ := f["acodec"].(string)
+			resolution, _ := f["resolution"].(string)
+			fps, _ := f["fps"].(float64)
+			tbr, _ := f["tbr"].(float64)
+
+			if vcodec != "none" && vcodec != "" && (acodec == "none" || acodec == "") {
+				quality := formatQuality(resolution)
+				if quality == "144p" || quality == "240p" {
+					continue
+				}
+
+				if fps > 0 {
+					quality = fmt.Sprintf("%s%.0f", quality, fps)
+				}
+
+				title := quality
+				if title == resolution || title == "?" {
+					title = resolution
+				}
+
+				if tbr > 0 {
+					title = fmt.Sprintf("%s @%s", title, formatBitrate(tbr))
+				}
+
+				title = fmt.Sprintf("%s mp4", title)
+
+				if audioLang != "" && audioLang != "und" {
+					title = fmt.Sprintf("%s [%s]", title, audioLang)
+				}
+
+				preset := types.FormatItem{
+					FormatTitle: title,
+					FormatValue: formatID + "+" + audioID,
+					Size:        "unknown size",
+					Language:    audioLang,
+					Resolution:  resolution,
+					FormatType:  "video-only+audio-only",
+				}
+
+				videoFormats = append(videoFormats, preset)
 			}
 		}
 

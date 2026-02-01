@@ -38,6 +38,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.VideoList.PlaylistURL = ""
 		cmd = utils.PerformSearch(msg.Query, m.Search.SortBy.GetSPParam())
 		m.ErrMsg = ""
+		m.Search.Input.SetValue("")
 	case types.StartFormatMsg:
 		m.State = types.StateLoading
 		m.LoadingType = "format"

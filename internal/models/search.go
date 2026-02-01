@@ -126,9 +126,6 @@ func (m SearchModel) View() string {
 				}
 				keyName := keyTypeToString(opt.KeyBinding)
 				fmt.Fprintf(&s, "%s %s (%s)", styles.SortItem.Render(indicator), opt.Name, keyName)
-				if opt.RequiresFFmpeg {
-					s.WriteString(styles.SortHelp.Render("(requires ffmpeg)"))
-				}
 				s.WriteRune('\n')
 			} else {
 				fmt.Fprintf(&s, "%s %s", styles.SortItem.Render("×"), opt.Name)

@@ -108,13 +108,13 @@ func (m *Model) View() string {
 		availableWidth := m.Width - 4
 		leftWidth := lipgloss.Width(left)
 		rightWidth := lipgloss.Width(right)
-		
+
 		rightSpace := availableWidth - leftWidth
-		
+
 		if rightWidth > rightSpace && rightSpace > 0 {
 			right = lipgloss.NewStyle().Foreground(styles.ErrorColor).Width(rightSpace).MaxWidth(rightSpace).Render("⚠ " + m.ErrMsg)
 		}
-		
+
 		statusBar = styles.StatusBarStyle.Height(1).Width(m.Width).Render(left + lipgloss.PlaceHorizontal(availableWidth-leftWidth, lipgloss.Right, right))
 	} else {
 		statusBar = styles.StatusBarStyle.Height(1).Width(m.Width).Render(left)

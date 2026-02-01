@@ -15,14 +15,16 @@ import (
 )
 
 type DownloadModel struct {
-	Progress      progress.Model
-	SelectedVideo types.VideoItem
-	CurrentSpeed  string
-	CurrentETA    string
-	Completed     bool
-	Paused        bool
-	Cancelled     bool
-	Destination   string
+	Progress        progress.Model
+	SelectedVideo   types.VideoItem
+	CurrentSpeed    string
+	CurrentETA      string
+	Phase           string
+	Completed       bool
+	Paused          bool
+	Cancelled       bool
+	Destination     string
+	FileDestination string
 }
 
 func NewDownloadModel() DownloadModel {
@@ -50,6 +52,10 @@ func (m DownloadModel) Update(msg tea.Msg) (DownloadModel, tea.Cmd) {
 		cmd = m.Progress.SetPercent(msg.Percent / 100.0)
 		m.CurrentSpeed = msg.Speed
 		m.CurrentETA = msg.Eta
+		m.Phase = msg.Status
+		if msg.Destination != "" {
+			m.FileDestination = msg.Destination
+		}
 	case types.PauseDownloadMsg:
 		m.Paused = true
 	case types.ResumeDownloadMsg:
@@ -109,18 +115,28 @@ func (m DownloadModel) View() string {
 
 	statusText := "⇣ Downloading"
 	if m.Completed {
-		statusText = "Download Complete"
+		statusText = "✓ Download Complete"
 	} else if m.Paused {
 		statusText = "⏸ Paused"
 	} else if m.Cancelled {
 		statusText = "✕ Cancelled"
+	} else if m.Phase != "" {
+		formatInfo := strings.TrimPrefix(m.Phase, "[download] ")
+		if formatInfo != "" && formatInfo != "[download]" {
+			statusText = "⇣ Downloading " + formatInfo
+		} else {
+			statusText = "⇣ Downloading"
+		}
 	}
 
 	s.WriteString(styles.SectionHeaderStyle.Render(statusText))
 	s.WriteRune('\n')
 
 	if m.Completed {
-		s.WriteString(styles.CompletionMessageStyle.Render("Video saved to current directory."))
+		title := m.SelectedVideo.Title()
+		finalPath := m.Destination + "/" + title + ".mp4"
+		s.WriteString(styles.CompletionMessageStyle.Render("Video saved to " + finalPath))
+		s.WriteRune('\n')
 		s.WriteRune('\n')
 		s.WriteString(styles.HelpStyle.Render("Press Enter to continue"))
 	} else if m.Cancelled {

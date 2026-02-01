@@ -68,6 +68,7 @@ func (m *FormatAutocompleteModel) UpdateFilteredFormats(query string, allFormats
 	specialFormats := []types.FormatItem{
 		{FormatTitle: "best video codec", FormatValue: "bestvideo", Size: "", Language: "", Resolution: "", FormatType: ""},
 		{FormatTitle: "best audio codec", FormatValue: "bestaudio", Size: "", Language: "", Resolution: "", FormatType: ""},
+		{FormatTitle: "best video + best audio", FormatValue: "bestvideo*+bestaudio", Size: "", Language: "", Resolution: "", FormatType: ""},
 	}
 
 	if query == "" {

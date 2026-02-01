@@ -177,7 +177,9 @@ Features like embedding subtitles require ffmpeg. Install it and ensure it's in 
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Video download engine
 - [Lipgloss](https://github.com/charmbracelet/lipgloss) - Styling library
+- [Bubbles](https://github.com/charmbracelet/bubbles) - TUI components
 
 ---
 
 By [xdagiz](https://github.com/xdagiz)
+

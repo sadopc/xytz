@@ -10,7 +10,9 @@ import (
 )
 
 type ProgressParser struct {
-	regex *regexp.Regexp
+	regex              *regexp.Regexp
+	currentFormat      string
+	currentDestination string
 }
 
 func NewProgressParser() *ProgressParser {
@@ -19,7 +21,7 @@ func NewProgressParser() *ProgressParser {
 	}
 }
 
-func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, string, string)) {
+func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, string, string, string, string)) {
 	reader := bufio.NewReader(pipe)
 	var lineBuilder strings.Builder
 
@@ -28,9 +30,9 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 		if err != nil {
 			if lineBuilder.Len() > 0 {
 				line := lineBuilder.String()
-				percent, speed, eta := p.ParseLine(line)
+				percent, speed, eta, status, destination := p.ParseLine(line)
 				if strings.Contains(line, "[download]") || percent > 0 || speed != "" || eta != "" {
-					sendProgress(percent, speed, eta)
+					sendProgress(percent, speed, eta, status, destination)
 				}
 			}
 			break
@@ -41,19 +43,19 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 		case '\r':
 			if lineBuilder.Len() > 0 {
 				line := lineBuilder.String()
-				percent, speed, eta := p.ParseLine(line)
+				percent, speed, eta, status, destination := p.ParseLine(line)
 				if strings.Contains(line, "[download]") || percent > 0 || speed != "" || eta != "" {
-					log.Printf("Progress parsed (\\r): %.2f%%, speed: %s, eta: %s, line: %s", percent, speed, eta, line)
-					sendProgress(percent, speed, eta)
+					log.Printf("Progress parsed (\\r): %.2f%%, speed: %s, eta: %s, status: %s, destination: %s, line: %s", percent, speed, eta, status, destination, line)
+					sendProgress(percent, speed, eta, status, destination)
 				}
 				lineBuilder.Reset()
 			}
 		case '\n':
 			if lineBuilder.Len() > 0 {
 				line := lineBuilder.String()
-				percent, speed, eta := p.ParseLine(line)
+				percent, speed, eta, status, destination := p.ParseLine(line)
 				if strings.Contains(line, "[download]") || percent > 0 || speed != "" || eta != "" {
-					sendProgress(percent, speed, eta)
+					sendProgress(percent, speed, eta, status, destination)
 				}
 				lineBuilder.Reset()
 			}
@@ -63,7 +65,7 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 	}
 }
 
-func (p *ProgressParser) ParseLine(line string) (percent float64, speed, eta string) {
+func (p *ProgressParser) ParseLine(line string) (percent float64, speed, eta, status, destination string) {
 	percentPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`(\d+(?:\.\d+)?)\s*%`),
 		regexp.MustCompile(`\[download\]\s+(\d+(?:\.\d+)?)%`),
@@ -72,8 +74,8 @@ func (p *ProgressParser) ParseLine(line string) (percent float64, speed, eta str
 	for _, pattern := range percentPatterns {
 		percentMatch := pattern.FindStringSubmatch(line)
 		if len(percentMatch) > 1 {
-			if p, err := strconv.ParseFloat(percentMatch[1], 64); err == nil {
-				percent = p
+			if pr, err := strconv.ParseFloat(percentMatch[1], 64); err == nil {
+				percent = pr
 				break
 			}
 		}
@@ -91,5 +93,58 @@ func (p *ProgressParser) ParseLine(line string) (percent float64, speed, eta str
 		eta = etaMatch[1]
 	}
 
-	return percent, speed, eta
+	if strings.Contains(line, "[download] Destination:") {
+		destPattern := regexp.MustCompile(`Destination:\s*(.+)`)
+		if match := destPattern.FindStringSubmatch(line); len(match) > 1 {
+			p.currentDestination = strings.TrimSpace(match[1])
+		}
+
+		if ext := extractFormatFromDestination(line); ext != "" {
+			p.currentFormat = ext
+		}
+	}
+
+	formatPattern := regexp.MustCompile(`(?:format|format_id)\s+(\d+)`)
+	if match := formatPattern.FindStringSubmatch(line); len(match) > 1 {
+		p.currentFormat = "format " + match[1]
+	}
+
+	if percent > 0 {
+		if p.currentFormat != "" {
+			status = "[download] " + p.currentFormat
+		} else {
+			status = "[download]"
+		}
+	}
+
+	return percent, speed, eta, status, p.currentDestination
+}
+
+func extractFormatFromDestination(line string) string {
+	videoExtensions := map[string]bool{
+		".mp4":  true,
+		".webm": true,
+		".mkv":  true,
+	}
+	audioExtensions := map[string]bool{
+		".m4a":  true,
+		".mp3":  true,
+		".ogg":  true,
+		".wav":  true,
+		".flac": true,
+		".aac":  true,
+	}
+
+	for ext := range videoExtensions {
+		if strings.Contains(line, ext) {
+			return "video"
+		}
+	}
+	for ext := range audioExtensions {
+		if strings.Contains(line, ext) {
+			return "audio"
+		}
+	}
+
+	return ""
 }
