@@ -63,6 +63,12 @@ sudo mv xytz /usr/local/bin/
 ### Using Build Script
 
 ```bash
+# Build for Linux x64
+./scripts/build.sh linux/amd64
+
+# Build for Windows x64
+./scripts/build.sh windows/amd64
+
 # Build for all platforms
 ./scripts/build.sh
 
@@ -182,4 +188,3 @@ Features like embedding subtitles require ffmpeg. Install it and ensure it's in 
 ---
 
 By [xdagiz](https://github.com/xdagiz)
-

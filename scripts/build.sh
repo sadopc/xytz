@@ -4,13 +4,9 @@ set -e
 
 VERSION=${1:-"dev"}
 VERSION=${VERSION#v}
+PLATFORM=${2:-""}
 DIST_DIR="dist"
 TEMP_DIR=$(mktemp -d)
-
-echo "Building xytz version: $VERSION"
-
-rm -rf "$DIST_DIR"
-mkdir -p "$DIST_DIR"
 
 platforms=(
   "linux/amd64"
@@ -20,6 +16,56 @@ platforms=(
   "windows/amd64"
   "windows/arm64"
 )
+
+show_help() {
+  echo "Usage: $0 [version] [platform]"
+  echo ""
+  echo "Arguments:"
+  echo "  version   Version string (default: dev)"
+  echo "  platform  Target platform as os/arch (optional)"
+  echo ""
+  echo "Examples:"
+  echo "  $0 v1.0.0              # Build all platforms, version v1.0.0"
+  echo "  $0 v1.0.0 linux/amd64  # Build only linux/amd64, version v1.0.0"
+  echo "  $0 v1.0.0 darwin/arm64 # Build only darwin/arm64, version v1.0.0"
+  echo ""
+  echo "Supported platforms:"
+  for platform in "${platforms[@]}"; do
+    echo "  - $platform"
+  done
+}
+
+is_valid_platform() {
+  local target="$1"
+  for platform in "${platforms[@]}"; do
+    if [[ "$platform" == "$target" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [[ "$VERSION" == "-h" || "$VERSION" == "--help" ]]; then
+  show_help
+  exit 0
+fi
+
+echo "Building xytz version: $VERSION"
+
+if [[ -n "$PLATFORM" ]]; then
+  if ! is_valid_platform "$PLATFORM"; then
+    echo "Error: Invalid platform '$PLATFORM'"
+    echo ""
+    show_help
+    exit 1
+  fi
+
+  echo "Building for platform: $PLATFORM"
+  platforms=("$PLATFORM")
+fi
+
+rm -rf "$DIST_DIR"
+mkdir -p "$DIST_DIR"
 
 for platform in "${platforms[@]}"; do
   IFS='/' read -r os arch <<<"$platform"
