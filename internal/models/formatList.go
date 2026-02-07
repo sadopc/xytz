@@ -42,13 +42,7 @@ type FormatListModel struct {
 }
 
 func NewFormatListModel() FormatListModel {
-	fd := list.NewDefaultDelegate()
-	fd.Styles.NormalTitle = styles.ListTitleStyle
-	fd.Styles.SelectedTitle = styles.ListSelectedTitleStyle
-	fd.Styles.NormalDesc = styles.ListDescStyle
-	fd.Styles.SelectedDesc = styles.ListSelectedDescStyle
-	fd.Styles.DimmedTitle = styles.ListDimmedTitle
-	fd.Styles.DimmedDesc = styles.ListDimmedDesc
+	fd := styles.NewListDelegate()
 	li := list.New([]list.Item{}, fd, 0, 0)
 	li.SetShowStatusBar(false)
 	li.SetShowTitle(false)

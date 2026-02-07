@@ -14,6 +14,7 @@ import (
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
@@ -201,6 +202,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.State = types.StateSearchInput
 					m.ErrMsg = ""
 					m.Search.Input.SetValue("")
+					m.VideoList.List.ResetFilter()
 					m.VideoList.List.ResetSelected()
 					m.VideoList.PlaylistURL = ""
 					return m, nil
@@ -214,6 +216,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if m.FormatList.List.FilterState() == list.Unfiltered {
 						if m.SelectedVideo.ID == "" {
 							m.State = types.StateSearchInput
+							m.Search.Input.SetValue("")
+							m.FormatList.List.ResetFilter()
 						} else {
 							m.State = types.StateVideoList
 						}
@@ -242,6 +246,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case list.FilterMatchesMsg:
 		switch m.State {
+		case types.StateSearchInput:
+			m.Search, cmd = m.Search.Update(msg)
 		case types.StateVideoList:
 			m.VideoList, cmd = m.VideoList.Update(msg)
 		case types.StateFormatList:

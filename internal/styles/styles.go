@@ -1,6 +1,9 @@
 package styles
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/lipgloss"
+)
 
 var (
 	PrimaryColor   = lipgloss.Color("#ffffff")
@@ -74,3 +77,14 @@ var (
 	FormatCustomInputPrompt    = lipgloss.NewStyle().Foreground(PinkColor)
 	FormatCustomHelpStyle      = lipgloss.NewStyle().Foreground(MutedColor).PaddingTop(1)
 )
+
+func NewListDelegate() list.DefaultDelegate {
+	dl := list.NewDefaultDelegate()
+	dl.Styles.NormalTitle = ListTitleStyle
+	dl.Styles.SelectedTitle = ListSelectedTitleStyle
+	dl.Styles.NormalDesc = ListDescStyle
+	dl.Styles.SelectedDesc = ListSelectedDescStyle
+	dl.Styles.DimmedTitle = ListDimmedTitle
+	dl.Styles.DimmedDesc = ListDimmedDesc
+	return dl
+}

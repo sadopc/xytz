@@ -24,7 +24,7 @@ type StatusKeys struct {
 	Prev   key.Binding
 }
 
-func GetStatusKeys(state types.State, helpVisible bool, resumeVisible bool, resumeKeys ResumeKeyMap) StatusKeys {
+func GetStatusKeys(state types.State, helpVisible bool, resumeVisible bool) StatusKeys {
 	keys := StatusKeys{
 		Quit: key.NewBinding(
 			key.WithKeys("ctrl+c", "q"),
@@ -35,13 +35,13 @@ func GetStatusKeys(state types.State, helpVisible bool, resumeVisible bool, resu
 	switch state {
 	case types.StateSearchInput:
 		if resumeVisible {
-			keys.Up = resumeKeys.Up
-			keys.Down = resumeKeys.Down
-			keys.Select = resumeKeys.Select
-			keys.Delete = resumeKeys.Delete
 			keys.Cancel = key.NewBinding(
 				key.WithKeys("esc"),
 				key.WithHelp("Esc", "cancel"),
+			)
+			keys.Delete = key.NewBinding(
+				key.WithKeys("delete", "ctrl+d"),
+				key.WithHelp("Del/Ctrl+d", "delete"),
 			)
 		}
 	case types.StateVideoList:

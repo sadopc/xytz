@@ -129,7 +129,7 @@ func (m *Model) View() string {
 		IsPaused:      m.Download.Paused,
 		IsCompleted:   m.Download.Completed,
 		IsCancelled:   m.Download.Cancelled,
-		Keys:          models.GetStatusKeys(m.State, m.Search.Help.Visible, m.Search.ResumeList.Visible, m.Search.ResumeList.Keys),
+		Keys:          models.GetStatusKeys(m.State, m.Search.Help.Visible, m.Search.ResumeList.Visible),
 		ResumeVisible: m.Search.ResumeList.Visible,
 	}
 

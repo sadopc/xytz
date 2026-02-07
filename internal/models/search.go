@@ -13,6 +13,7 @@ import (
 	"github.com/xdagiz/xytz/internal/utils"
 	"github.com/xdagiz/xytz/internal/version"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -210,6 +211,11 @@ func (m *SearchModel) navigateHistory(dir int) {
 }
 
 func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
+	var (
+		cmd      tea.Cmd
+		inputCmd tea.Cmd
+	)
+
 	if m.Help.Visible {
 		if keyMsg, ok := msg.(tea.KeyMsg); ok {
 			switch keyMsg.Type {
@@ -226,14 +232,19 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		switch keyMsg.Type {
 		case tea.KeyEsc:
 			if m.ResumeList.Visible {
+				if m.ResumeList.List.FilterState() == list.Filtering {
+					m.ResumeList.List.SetFilterState(list.Unfiltered)
+					return m, nil
+				}
 				m.ResumeList.Hide()
+				m.ResumeList.List.ResetFilter()
+				m.Input.SetValue("")
 				return m, nil
 			}
+
 			m.Help.Hide()
 		}
 	}
-
-	var cmd tea.Cmd
 
 	handled, autocompleteCmd := m.Autocomplete.Update(msg)
 	if handled {
@@ -265,10 +276,19 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 			}
 		}
 		return m, nil
+	case list.FilterMatchesMsg:
+		if m.ResumeList.Visible {
+			m.ResumeList.List, cmd = m.ResumeList.List.Update(msg)
+		}
+		return m, cmd
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
 			if m.ResumeList.Visible {
+				if m.ResumeList.List.FilterState() == list.Filtering {
+					m.ResumeList.List.SetFilterState(list.FilterApplied)
+					return m, nil
+				}
 				if item := m.ResumeList.SelectedItem(); item != nil {
 					m.ResumeList.Hide()
 					cmd = func() tea.Msg {
@@ -278,7 +298,6 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 							Title:    item.Title,
 						}
 					}
-
 					return m, cmd
 				}
 			}
@@ -300,7 +319,7 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		case tea.KeyBackspace:
 			m.updateAutocompleteFilter()
 		case tea.KeyRunes:
-			if string(msg.Runes) == "/" && !m.Autocomplete.Visible {
+			if string(msg.Runes) == "/" && !m.Autocomplete.Visible && !m.ResumeList.Visible {
 				currentValue := m.Input.Value()
 				if currentValue == "" {
 					m.Autocomplete.Show("/")
@@ -339,7 +358,6 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		}
 	}
 
-	var inputCmd tea.Cmd
 	oldValue := m.Input.Value()
 	m.Input, inputCmd = m.Input.Update(msg)
 	newValue := m.Input.Value()
@@ -362,7 +380,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	}
 
 	if m.ResumeList.Visible {
-		m.ResumeList.Update(msg)
+		m.ResumeList.List, cmd = m.ResumeList.List.Update(msg)
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.Type {
+			case tea.KeyDelete, tea.KeyCtrlD:
+				m.ResumeList.DeleteSelected()
+			}
+		}
 	}
 
 	return m, tea.Batch(cmd, inputCmd, autocompleteCmd)
