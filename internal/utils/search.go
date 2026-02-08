@@ -21,7 +21,7 @@ var (
 	searchCanceled bool
 )
 
-func executeYTDLP(searchURL string) any {
+func executeYTDLP(searchURL string, searchLimit int) any {
 	cfg, err := config.Load()
 	if err != nil {
 		cfg = config.GetDefault()
@@ -44,7 +44,7 @@ func executeYTDLP(searchURL string) any {
 		return types.SearchResultMsg{Err: errMsg}
 	}
 
-	playlistItems := fmt.Sprintf("1:%d", cfg.SearchLimit)
+	playlistItems := fmt.Sprintf("1:%d", searchLimit)
 	cmd := exec.Command(
 		ytDlpPath,
 		"--flat-playlist",
@@ -149,7 +149,7 @@ func executeYTDLP(searchURL string) any {
 	}
 }
 
-func PerformSearch(query, sortParam string) tea.Cmd {
+func PerformSearch(query, sortParam string, searchLimit int) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		query = strings.TrimSpace(query)
 
@@ -162,12 +162,12 @@ func PerformSearch(query, sortParam string) tea.Cmd {
 		} else {
 			encodedQuery := url.QueryEscape(query)
 			searchURL := "https://www.youtube.com/results?search_query=" + encodedQuery + "&sp=" + sortParam
-			return executeYTDLP(searchURL)
+			return executeYTDLP(searchURL, searchLimit)
 		}
 	})
 }
 
-func PerformChannelSearch(input string) tea.Cmd {
+func PerformChannelSearch(input string, searchLimit int) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		var channelURL string
 
@@ -183,11 +183,11 @@ func PerformChannelSearch(input string) tea.Cmd {
 			channelURL = "https://www.youtube.com/@" + encodedChannel + "/videos"
 		}
 
-		return executeYTDLP(channelURL)
+		return executeYTDLP(channelURL, searchLimit)
 	})
 }
 
-func PerformPlaylistSearch(query string) tea.Cmd {
+func PerformPlaylistSearch(query string, searchLimit int) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		var playlistURL string
 
@@ -208,7 +208,7 @@ func PerformPlaylistSearch(query string) tea.Cmd {
 			playlistURL = "https://www.youtube.com/playlist?list=" + query
 		}
 
-		return executeYTDLP(playlistURL)
+		return executeYTDLP(playlistURL, searchLimit)
 	})
 }
 

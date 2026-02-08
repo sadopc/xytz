@@ -36,7 +36,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.VideoList.ChannelName = ""
 		m.VideoList.PlaylistName = ""
 		m.VideoList.PlaylistURL = ""
-		cmd = utils.PerformSearch(msg.Query, m.Search.SortBy.GetSPParam())
+		cmd = utils.PerformSearch(msg.Query, m.Search.SortBy.GetSPParam(), m.Search.SearchLimit)
 		m.ErrMsg = ""
 		m.Search.Input.SetValue("")
 	case types.StartFormatMsg:
@@ -140,7 +140,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.VideoList.IsPlaylistSearch = false
 		m.VideoList.ChannelName = msg.ChannelName
 		m.VideoList.PlaylistURL = ""
-		cmd = utils.PerformChannelSearch(msg.ChannelName)
+		cmd = utils.PerformChannelSearch(msg.ChannelName, m.Search.SearchLimit)
 		m.ErrMsg = ""
 		return m, cmd
 	case types.StartPlaylistURLMsg:
@@ -166,7 +166,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.VideoList.PlaylistURL = "https://www.youtube.com/playlist?list=" + msg.Query
 		}
-		cmd = utils.PerformPlaylistSearch(msg.Query)
+		cmd = utils.PerformPlaylistSearch(msg.Query, m.Search.SearchLimit)
 		m.ErrMsg = ""
 		return m, cmd
 	case types.BackFromVideoListMsg:

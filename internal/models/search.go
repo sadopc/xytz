@@ -20,6 +20,11 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 )
 
+type CLIOptions struct {
+	SearchLimit int
+	SortBy      string
+}
+
 type SearchModel struct {
 	Width           int
 	Height          int
@@ -31,11 +36,16 @@ type SearchModel struct {
 	HistoryIndex    int
 	OriginalQuery   string
 	SortBy          types.SortBy
+	SearchLimit     int
 	DownloadOptions []types.DownloadOption
 	HasFFmpeg       bool
 }
 
 func NewSearchModel() SearchModel {
+	return NewSearchModelWithOptions(nil)
+}
+
+func NewSearchModelWithOptions(opts *CLIOptions) SearchModel {
 	ti := textinput.New()
 	ti.Placeholder = "Enter a query or URL"
 	ti.Focus()
@@ -50,7 +60,18 @@ func NewSearchModel() SearchModel {
 	}
 
 	cfg, _ := config.Load()
-	defaultSort := types.ParseSortBy(cfg.SortByDefault)
+
+	var defaultSort types.SortBy
+	var searchLimit int
+
+	if opts != nil {
+		defaultSort = types.ParseSortBy(opts.SortBy)
+		searchLimit = opts.SearchLimit
+	} else {
+		defaultSort = types.ParseSortBy(cfg.SortByDefault)
+		searchLimit = cfg.SearchLimit
+	}
+
 	hasFFmpeg := utils.HasFFmpeg(cfg.FFmpegPath)
 
 	options := types.DownloadOptions()
@@ -74,6 +95,7 @@ func NewSearchModel() SearchModel {
 		HistoryIndex:    -1,
 		OriginalQuery:   "",
 		SortBy:          defaultSort,
+		SearchLimit:     searchLimit,
 		DownloadOptions: options,
 		HasFFmpeg:       hasFFmpeg,
 	}
