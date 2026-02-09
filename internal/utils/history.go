@@ -72,7 +72,7 @@ func SaveHistory(query string) error {
 	}
 
 	content := strings.Join(newHistory, "\n")
-	return os.WriteFile(path, []byte(content), 0644)
+	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 func AddToHistory(query string) error {

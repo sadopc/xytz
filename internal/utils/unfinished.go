@@ -55,7 +55,7 @@ func SaveUnfinished(downloads []UnfinishedDownload) error {
 		return err
 	}
 
-	return os.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0o644)
 }
 
 func AddUnfinished(download UnfinishedDownload) error {

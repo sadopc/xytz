@@ -9,49 +9,38 @@ import (
 	"github.com/xdagiz/xytz/internal/types"
 )
 
+func extractAfterDelimiter(s, delimiter string, trailingDelimiters ...string) string {
+	parts := strings.Split(s, delimiter)
+	if len(parts) <= 1 {
+		return ""
+	}
+
+	result := parts[1]
+	for _, delim := range trailingDelimiters {
+		if idx := strings.Index(result, delim); idx != -1 {
+			result = result[:idx]
+		}
+	}
+
+	return result
+}
+
 func ExtractVideoID(url string) string {
 	if strings.Contains(url, "youtube.com/watch") && strings.Contains(url, "v=") {
-		parts := strings.Split(url, "v=")
-		if len(parts) > 1 {
-			videoID := parts[1]
-			if idx := strings.Index(videoID, "&"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			if idx := strings.Index(videoID, "#"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			return videoID
+		if result := extractAfterDelimiter(url, "v=", "&", "#"); result != "" {
+			return result
 		}
 	}
 
 	if strings.Contains(url, "youtu.be/") {
-		parts := strings.Split(url, "youtu.be/")
-		if len(parts) > 1 {
-			videoID := parts[1]
-			if idx := strings.Index(videoID, "&"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			if idx := strings.Index(videoID, "#"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			if idx := strings.Index(videoID, "?"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			return videoID
+		if result := extractAfterDelimiter(url, "youtu.be/", "&", "#", "?"); result != "" {
+			return result
 		}
 	}
 
 	if strings.Contains(url, "youtube.com/embed/") {
-		parts := strings.Split(url, "youtube.com/embed/")
-		if len(parts) > 1 {
-			videoID := parts[1]
-			if idx := strings.Index(videoID, "&"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			if idx := strings.Index(videoID, "#"); idx != -1 {
-				videoID = videoID[:idx]
-			}
-			return videoID
+		if result := extractAfterDelimiter(url, "youtube.com/embed/", "&", "#"); result != "" {
+			return result
 		}
 	}
 
@@ -61,45 +50,25 @@ func ExtractVideoID(url string) string {
 func ExtractChannelUsername(input string) string {
 	input = strings.TrimSpace(input)
 
-	if strings.HasPrefix(input, "@") {
-		return strings.TrimPrefix(input, "@")
+	if after, ok := strings.CutPrefix(input, "@"); ok {
+		return after
 	}
 
-	if strings.Contains(input, "youtube.com") {
-		if strings.Contains(input, "youtube.com/@") {
-			parts := strings.Split(input, "@")
-			if len(parts) > 1 {
-				username := parts[1]
-				if idx := strings.Index(username, "/"); idx != -1 {
-					username = username[:idx]
-				}
-
-				return username
-			}
+	if strings.Contains(input, "youtube.com/@") {
+		if result := extractAfterDelimiter(input, "@", "/"); result != "" {
+			return result
 		}
+	}
 
-		if strings.Contains(input, "/channel/") {
-			parts := strings.Split(input, "/channel/")
-			if len(parts) > 1 {
-				channelID := parts[1]
-				if idx := strings.Index(channelID, "?"); idx != -1 {
-					channelID = channelID[:idx]
-				}
-
-				return channelID
-			}
+	if strings.Contains(input, "/channel/") {
+		if result := extractAfterDelimiter(input, "/channel/", "?"); result != "" {
+			return result
 		}
+	}
 
-		if strings.Contains(input, "/c/") {
-			parts := strings.Split(input, "/c/")
-			if len(parts) > 1 {
-				customName := parts[1]
-				if idx := strings.Index(customName, "/"); idx != -1 {
-					customName = customName[:idx]
-				}
-
-				return customName
-			}
+	if strings.Contains(input, "/c/") {
+		if result := extractAfterDelimiter(input, "/c/", "/"); result != "" {
+			return result
 		}
 	}
 
@@ -116,14 +85,16 @@ func ParseVideoItem(line string) (types.VideoItem, error) {
 		return types.VideoItem{}, fmt.Errorf("received nil data")
 	}
 
-	title, _ := data["title"].(string)
-	videoID, _ := data["id"].(string)
-
-	if title == "" || videoID == "" {
-		return types.VideoItem{}, fmt.Errorf("missing title or videoID")
+	title, ok := data["title"].(string)
+	if !ok || title == "" {
+		return types.VideoItem{}, fmt.Errorf("missing title in video data")
+	}
+	videoID, ok := data["id"].(string)
+	if !ok || videoID == "" {
+		return types.VideoItem{}, fmt.Errorf("missing video ID in video data")
 	}
 
-	channel, _ := data["uploader"].(string)
+	channel, ok := data["uploader"].(string)
 	if channel == "" {
 		if playlistUploader, ok := data["playlist_uploader"].(string); ok && playlistUploader != "" {
 			channel = playlistUploader
@@ -189,5 +160,6 @@ func parseFloat(v any) float64 {
 			return f
 		}
 	}
+
 	return 0
 }

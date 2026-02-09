@@ -32,6 +32,7 @@ func StartDownload(dm *DownloadManager, program *tea.Program, url, formatID stri
 
 		cfg, err := config.Load()
 		if err != nil {
+			log.Printf("Warning: Failed to load config, using defaults: %v", err)
 			cfg = config.GetDefault()
 		}
 

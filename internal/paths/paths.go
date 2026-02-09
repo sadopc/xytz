@@ -62,5 +62,5 @@ func GetDataDir() string {
 }
 
 func EnsureDirExists(path string) error {
-	return os.MkdirAll(path, 0755)
+	return os.MkdirAll(path, 0o755)
 }

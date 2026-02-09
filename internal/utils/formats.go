@@ -103,12 +103,15 @@ func FetchFormats(fm *FormatsManager, url string) tea.Cmd {
 	return tea.Cmd(func() tea.Msg {
 		cfg, err := config.Load()
 		if err != nil {
+			log.Printf("Warning: Failed to load config, using defaults: %v", err)
 			cfg = config.GetDefault()
 		}
+
 		ytDlpPath := cfg.YTDLPPath
 		if ytDlpPath == "" {
 			ytDlpPath = "yt-dlp"
 		}
+
 		cmd := exec.Command(ytDlpPath, "-J", url)
 
 		fm.SetCmd(cmd)
@@ -154,11 +157,18 @@ func FetchFormats(fm *FormatsManager, url string) tea.Cmd {
 
 		videoInfo := extractVideoInfo(data)
 
-		formatsAny, _ := data["formats"].([]any)
-		var videoFormats []list.Item
-		var audioFormats []list.Item
-		var thumbnailFormats []list.Item
-		var allFormats []list.Item
+		formatsAny, ok := data["formats"].([]any)
+		if !ok {
+			log.Printf("Warning: No formats found in yt-dlp output")
+			formatsAny = []any{}
+		}
+
+		var (
+			videoFormats     []list.Item
+			audioFormats     []list.Item
+			thumbnailFormats []list.Item
+			allFormats       []list.Item
+		)
 
 		audioLanguages := make(map[string]bool)
 		for _, fAny := range formatsAny {
@@ -167,10 +177,13 @@ func FetchFormats(fm *FormatsManager, url string) tea.Cmd {
 				continue
 			}
 
-			acodec, _ := f["acodec"].(string)
+			acodec, ok := f["acodec"].(string)
+			if !ok {
+				acodec = ""
+			}
 			if acodec != "none" && acodec != "" {
-				lang, _ := f["language"].(string)
-				if lang == "" {
+				lang, ok := f["language"].(string)
+				if !ok || lang == "" {
 					lang, _ = f["lang"].(string)
 				}
 				if lang != "" && lang != "und" {
@@ -187,11 +200,23 @@ func FetchFormats(fm *FormatsManager, url string) tea.Cmd {
 				continue
 			}
 
-			formatID, _ := f["format_id"].(string)
-			ext, _ := f["ext"].(string)
+			formatID, ok := f["format_id"].(string)
+			if !ok || formatID == "" {
+				continue
+			}
+			ext, ok := f["ext"].(string)
+			if !ok || ext == "" {
+				continue
+			}
 			resolution, _ := f["resolution"].(string)
-			acodec, _ := f["acodec"].(string)
-			vcodec, _ := f["vcodec"].(string)
+			acodec, ok := f["acodec"].(string)
+			if !ok {
+				acodec = ""
+			}
+			vcodec, ok := f["vcodec"].(string)
+			if !ok {
+				vcodec = ""
+			}
 			abr, _ := f["abr"].(float64)
 			fps, _ := f["fps"].(float64)
 			tbr, _ := f["tbr"].(float64)

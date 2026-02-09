@@ -17,6 +17,7 @@ import (
 func executeYTDLP(sm *SearchManager, searchURL string, searchLimit int) any {
 	cfg, err := config.Load()
 	if err != nil {
+		log.Printf("Warning: Failed to load config, using defaults: %v", err)
 		cfg = config.GetDefault()
 	}
 

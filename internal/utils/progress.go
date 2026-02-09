@@ -35,6 +35,7 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 					sendProgress(percent, speed, eta, status, destination)
 				}
 			}
+
 			break
 		}
 
@@ -48,8 +49,10 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 					log.Printf("Progress parsed (\\r): %.2f%%, speed: %s, eta: %s, status: %s, destination: %s, line: %s", percent, speed, eta, status, destination, line)
 					sendProgress(percent, speed, eta, status, destination)
 				}
+
 				lineBuilder.Reset()
 			}
+
 		case '\n':
 			if lineBuilder.Len() > 0 {
 				line := lineBuilder.String()
@@ -59,6 +62,7 @@ func (p *ProgressParser) ReadPipe(pipe io.Reader, sendProgress func(float64, str
 				}
 				lineBuilder.Reset()
 			}
+
 		default:
 			lineBuilder.WriteRune(r)
 		}
@@ -140,6 +144,7 @@ func extractFormatFromDestination(line string) string {
 			return "video"
 		}
 	}
+
 	for ext := range audioExtensions {
 		if strings.Contains(line, ext) {
 			return "audio"

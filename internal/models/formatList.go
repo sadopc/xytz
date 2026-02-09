@@ -114,7 +114,7 @@ func (m FormatListModel) renderTabs() string {
 	var tabBar strings.Builder
 
 	for i, name := range formatTabNames {
-		var style = styles.TabInactiveStyle
+		style := styles.TabInactiveStyle
 		if FormatTab(i) == m.ActiveTab {
 			style = styles.TabActiveStyle
 		}
@@ -303,5 +303,7 @@ func (m *FormatListModel) ResetTab() {
 	m.updateListForTab()
 }
 
-var formatTabNext = key.NewBinding(key.WithKeys("tab"))
-var formatTabPrev = key.NewBinding(key.WithKeys("shift+tab"))
+var (
+	formatTabNext = key.NewBinding(key.WithKeys("tab"))
+	formatTabPrev = key.NewBinding(key.WithKeys("shift+tab"))
+)
