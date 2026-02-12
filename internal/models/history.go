@@ -37,6 +37,8 @@ func (h *HistoryNavigator) Add(query string) {
 	h.Load()
 }
 
+// Navigate moves through history. dir=+1 goes to older entries, dir=-1 goes to newer.
+// When returning past the newest entry (index -1), the original query is restored.
 func (h *HistoryNavigator) Navigate(dir int, getCurrentValue func() string, setValue func(string)) {
 	if h.index == -1 {
 		h.originalQuery = getCurrentValue()

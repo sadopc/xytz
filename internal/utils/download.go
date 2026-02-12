@@ -178,13 +178,13 @@ func doDownload(dm *DownloadManager, program *tea.Program, url, formatID string,
 	parser := NewProgressParser()
 	var wg sync.WaitGroup
 	readPipe := func(pipe io.Reader) {
-		wg.Add(1)
 		defer wg.Done()
 		parser.ReadPipe(pipe, func(percent float64, speed, eta, status, destination string) {
 			program.Send(types.ProgressMsg{Percent: percent, Speed: speed, Eta: eta, Status: status, Destination: destination, FileExtension: fileExtension})
 		})
 	}
 
+	wg.Add(2)
 	go readPipe(stdout)
 	go readPipe(stderr)
 	wg.Wait()

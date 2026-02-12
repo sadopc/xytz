@@ -20,6 +20,10 @@ func OpenURL(url string) {
 
 		if err := cmd.Start(); err != nil {
 			log.Printf("Failed to open URL: %v", err)
+			return
+		}
+		if err := cmd.Wait(); err != nil {
+			log.Printf("Failed to open URL: %v", err)
 		}
 	}()
 }
