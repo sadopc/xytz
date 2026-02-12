@@ -265,8 +265,7 @@ func (m *FormatAutocompleteModel) View(width, height int) string {
 		}
 
 		if result.Format.FormatType != "" {
-			if strings.Contains(result.Format.Resolution, "audio") && strings.Contains(result.Format.FormatType, "audio") {
-			} else {
+			if !(strings.Contains(result.Format.Resolution, "audio") && strings.Contains(result.Format.FormatType, "audio")) {
 				itemText += " - " + result.Format.FormatType
 			}
 		}

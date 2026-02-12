@@ -46,6 +46,24 @@ type MatchResult struct {
 	Matched bool
 }
 
+func ParseCommand(input string) (cmd string, args string, isSlash bool) {
+	input = strings.TrimSpace(input)
+	if !strings.HasPrefix(input, "/") {
+		return "", "", false
+	}
+
+	rest := strings.TrimPrefix(input, "/")
+
+	spaceIdx := strings.Index(rest, " ")
+	if spaceIdx == -1 {
+		return rest, "", true
+	}
+
+	cmd = rest[:spaceIdx]
+	args = strings.TrimSpace(rest[spaceIdx:])
+	return cmd, args, true
+}
+
 func FuzzyMatch(query string) []MatchResult {
 	query = strings.TrimPrefix(query, "/")
 

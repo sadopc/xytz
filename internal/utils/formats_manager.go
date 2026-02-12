@@ -52,6 +52,16 @@ func (fm *FormatsManager) Clear() {
 	fm.canceled = false
 }
 
+func (fm *FormatsManager) ClearAndCheckCanceled() bool {
+	fm.mutex.Lock()
+	defer fm.mutex.Unlock()
+
+	wasCanceled := fm.canceled
+	fm.cmd = nil
+	fm.canceled = false
+	return wasCanceled
+}
+
 func (fm *FormatsManager) Cancel() error {
 	fm.mutex.Lock()
 	defer fm.mutex.Unlock()

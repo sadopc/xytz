@@ -159,6 +159,7 @@ func doDownload(dm *DownloadManager, program *tea.Program, url, formatID string,
 
 	stderr, err2 := cmd.StderrPipe()
 	if err2 != nil {
+		stdout.Close()
 		log.Printf("stderr pipe error: %v", err2)
 		errMsg := fmt.Sprintf("stderr pipe error: %v", err2)
 		program.Send(types.DownloadResultMsg{Err: errMsg})
@@ -166,6 +167,8 @@ func doDownload(dm *DownloadManager, program *tea.Program, url, formatID string,
 	}
 
 	if err := cmd.Start(); err != nil {
+		stdout.Close()
+		stderr.Close()
 		log.Printf("start error: %v", err)
 		errMsg := fmt.Sprintf("start error: %v", err)
 		program.Send(types.DownloadResultMsg{Err: errMsg})

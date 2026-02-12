@@ -84,6 +84,10 @@ func startApp() {
 		os.Exit(1)
 	}
 
+	m.SearchManager.Cancel()
+	m.FormatsManager.Cancel()
+	m.DownloadManager.Cancel()
+
 	saveConfigOptions(m)
 }
 

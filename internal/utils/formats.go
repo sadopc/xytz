@@ -129,14 +129,11 @@ func FetchFormats(fm *FormatsManager, url string) tea.Cmd {
 		}
 
 		out, err := io.ReadAll(stdout)
-		if err := stdout.Close(); err != nil {
-			log.Printf("failed to close formats stdout: %v", err)
+		if closeErr := stdout.Close(); closeErr != nil {
+			log.Printf("failed to close formats stdout: %v", closeErr)
 		}
 
-		wasCancelled := fm.WasCanceled()
-		fm.Clear()
-
-		if wasCancelled {
+		if fm.ClearAndCheckCanceled() {
 			return nil
 		}
 

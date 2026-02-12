@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -85,7 +86,10 @@ func executeYTDLP(sm *SearchManager, searchURL string, searchLimit int) any {
 	scanner := bufio.NewScanner(stdout)
 	stderrScanner := bufio.NewScanner(stderr)
 	stderrLines := []string{}
+	var stderrWg sync.WaitGroup
+	stderrWg.Add(1)
 	go func() {
+		defer stderrWg.Done()
 		for stderrScanner.Scan() {
 			line := stderrScanner.Text()
 			stderrLines = append(stderrLines, line)
@@ -114,15 +118,14 @@ func executeYTDLP(sm *SearchManager, searchURL string, searchLimit int) any {
 		log.Printf("Scanner error: %v", err)
 	}
 
+	stderrWg.Wait()
+
 	if err := cmd.Wait(); err != nil {
 		log.Printf("yt-dlp command failed: %v", err)
 		log.Printf("stderr output: %v", stderrLines)
 	}
 
-	wasCancelled := sm.WasCanceled()
-	sm.Clear()
-
-	if wasCancelled {
+	if sm.ClearAndCheckCanceled() {
 		return nil
 	}
 

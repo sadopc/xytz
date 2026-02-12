@@ -2,12 +2,10 @@ package models
 
 import (
 	"fmt"
-	"log"
-	"os/exec"
-	"runtime"
 	"strings"
 
 	"github.com/xdagiz/xytz/internal/config"
+	"github.com/xdagiz/xytz/internal/slash"
 	"github.com/xdagiz/xytz/internal/styles"
 	"github.com/xdagiz/xytz/internal/types"
 	"github.com/xdagiz/xytz/internal/utils"
@@ -31,22 +29,20 @@ type CLIOptions struct {
 }
 
 type SearchModel struct {
-	Width           int
-	Height          int
-	Input           textinput.Model
-	Autocomplete    SlashModel
-	ResumeList      ResumeModel
-	Help            HelpModel
-	History         []string
-	HistoryIndex    int
-	OriginalQuery   string
-	SortBy          types.SortBy
-	SearchLimit     int
-	DownloadOptions []types.DownloadOption
-	Options         *CLIOptions
-	HasFFmpeg       bool
+	Width              int
+	Height             int
+	Input              textinput.Model
+	Autocomplete       SlashModel
+	ResumeList         ResumeModel
+	Help               HelpModel
+	History            HistoryNavigator
+	SortBy             types.SortBy
+	SearchLimit        int
+	DownloadOptions    []types.DownloadOption
+	Options            *CLIOptions
+	HasFFmpeg          bool
 	CookiesFromBrowser string
-	Cookies         string
+	Cookies            string
 }
 
 func NewSearchModel() SearchModel {
@@ -60,12 +56,6 @@ func NewSearchModelWithOptions(opts *CLIOptions) SearchModel {
 	ti.Prompt = "❯ "
 	ti.PromptStyle = ti.PromptStyle.Foreground(styles.PinkColor)
 	ti.PlaceholderStyle = ti.PlaceholderStyle.Foreground(styles.MutedColor)
-
-	history, err := utils.LoadHistory()
-	if err != nil {
-		log.Printf("Failed to load history: %v", err)
-		history = []string{}
-	}
 
 	cfg, _ := config.Load()
 
@@ -101,20 +91,18 @@ func NewSearchModelWithOptions(opts *CLIOptions) SearchModel {
 	}
 
 	return SearchModel{
-		Input:           ti,
-		Autocomplete:    NewSlashModel(),
-		ResumeList:      NewResumeModel(),
-		Help:            NewHelpModel(),
-		History:         history,
-		HistoryIndex:    -1,
-		OriginalQuery:   "",
-		SortBy:          defaultSort,
-		SearchLimit:     searchLimit,
-		DownloadOptions: options,
-		Options:         opts,
-		HasFFmpeg:       hasFFmpeg,
+		Input:              ti,
+		Autocomplete:       NewSlashModel(),
+		ResumeList:         NewResumeModel(),
+		Help:               NewHelpModel(),
+		History:            NewHistoryNavigator(),
+		SortBy:             defaultSort,
+		SearchLimit:        searchLimit,
+		DownloadOptions:    options,
+		Options:            opts,
+		HasFFmpeg:          hasFFmpeg,
 		CookiesFromBrowser: cookiesFromBrowser,
-		Cookies:         cookies,
+		Cookies:            cookies,
 	}
 }
 
@@ -197,90 +185,19 @@ func (m SearchModel) HandleResize(w, h int) SearchModel {
 	return m
 }
 
-func (m *SearchModel) addToHistory(query string) {
-	if err := utils.AddToHistory(query); err != nil {
-		log.Printf("Failed to save history: %v", err)
-	}
-
-	m.HistoryIndex = -1
-	m.OriginalQuery = ""
-
-	history, err := utils.LoadHistory()
-	if err != nil {
-		log.Printf("Failed to reload history: %v", err)
-	} else {
-		m.History = history
-	}
-}
-
-func parseSlashCommand(input string) (cmd string, args string, isSlashCommand bool) {
-	input = strings.TrimSpace(input)
-	if !strings.HasPrefix(input, "/") {
-		return "", "", false
-	}
-
-	rest := strings.TrimPrefix(input, "/")
-
-	spaceIdx := strings.Index(rest, " ")
-	if spaceIdx == -1 {
-		return rest, "", true
-	}
-
-	cmd = rest[:spaceIdx]
-	args = strings.TrimSpace(rest[spaceIdx:])
-	return cmd, args, true
-}
-
-func (m *SearchModel) navigateHistory(dir int) {
-	if m.HistoryIndex == -1 {
-		m.OriginalQuery = m.Input.Value()
-	}
-
-	newIndex := m.HistoryIndex + dir
-
-	if newIndex < 0 {
-		m.HistoryIndex = -1
-		m.Input.SetValue(m.OriginalQuery)
-	} else if newIndex >= len(m.History) {
-		m.HistoryIndex = len(m.History) - 1
-	} else {
-		m.HistoryIndex = newIndex
-		m.Input.SetValue(m.History[newIndex])
-	}
-}
-
 func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
-	var (
-		cmd      tea.Cmd
-		inputCmd tea.Cmd
-	)
-
 	if m.Help.Visible {
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
-			switch keyMsg.Type {
-			case tea.KeyEsc:
-				m.Help.Hide()
-			}
+		if updated, cmd, handled := m.handleHelpInput(msg); handled {
+			return updated, cmd
 		}
-
-		m.Help, _ = m.Help.Update(msg)
-		return m, nil
 	}
 
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		switch keyMsg.Type {
 		case tea.KeyEsc:
-			if m.ResumeList.Visible {
-				if m.ResumeList.List.FilterState() == list.Filtering {
-					m.ResumeList.List.SetFilterState(list.Unfiltered)
-					return m, nil
-				}
-				m.ResumeList.Hide()
-				m.ResumeList.List.ResetFilter()
-				m.Input.SetValue("")
-				return m, nil
+			if updated, cmd, handled := m.handleResumeEsc(); handled {
+				return updated, cmd
 			}
-
 			m.Help.Hide()
 		}
 	}
@@ -294,12 +211,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 					m.completeAutocomplete()
 					query := m.Input.Value()
 
-					slashCmd, args, isSlash := parseSlashCommand(query)
+					slashCmd, args, isSlash := slash.ParseCommand(query)
 					if isSlash {
-						cmd = m.executeSlashCommand(slashCmd, query, args)
+						cmd := m.executeSlashCommand(slashCmd, query, args)
+						return m, cmd
 					}
 
-					return m, cmd
+					return m, nil
 				}
 			}
 		}
@@ -307,11 +225,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 		return m, autocompleteCmd
 	}
 
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if zone.Get("open_github").InBounds(msg) {
 			if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
-				openGithub()
+				utils.OpenURL(types.GithubRepoLink)
 			}
 		}
 		return m, nil
@@ -325,38 +245,7 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEnter:
-			if m.ResumeList.Visible {
-				if m.ResumeList.List.FilterState() == list.Filtering {
-					m.ResumeList.List.SetFilterState(list.FilterApplied)
-					return m, nil
-				}
-				if item := m.ResumeList.SelectedItem(); item != nil {
-					m.ResumeList.Hide()
-					cmd = func() tea.Msg {
-						return types.StartResumeDownloadMsg{
-							URL:      item.URL,
-							FormatID: item.FormatID,
-							Title:    item.Title,
-						}
-					}
-					return m, cmd
-				}
-			}
-
-			query := m.Input.Value()
-			if query == "" {
-				break
-			}
-
-			slashCmd, args, isSlash := parseSlashCommand(query)
-			if isSlash {
-				cmd = m.executeSlashCommand(slashCmd, query, args)
-			} else {
-				m.addToHistory(query)
-				cmd = func() tea.Msg {
-					return types.StartSearchMsg{Query: query}
-				}
-			}
+			return m.handleEnterKey()
 
 		case tea.KeyBackspace:
 			m.updateAutocompleteFilter()
@@ -373,13 +262,13 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 
 		case tea.KeyUp, tea.KeyCtrlP:
 			if !m.ResumeList.Visible {
-				m.navigateHistory(1)
+				m.History.Navigate(1, m.Input.Value, m.Input.SetValue)
 				m.Input.CursorEnd()
 			}
 
 		case tea.KeyDown, tea.KeyCtrlN:
 			if !m.ResumeList.Visible {
-				m.navigateHistory(-1)
+				m.History.Navigate(-1, m.Input.Value, m.Input.SetValue)
 				m.Input.CursorEnd()
 			}
 
@@ -403,21 +292,16 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 			}
 
 		case tea.KeyCtrlO:
-			openGithub()
+			utils.OpenURL(types.GithubRepoLink)
 		}
 	}
 
 	oldValue := m.Input.Value()
+	var inputCmd tea.Cmd
 	m.Input, inputCmd = m.Input.Update(msg)
 	newValue := m.Input.Value()
 
-	if m.HistoryIndex >= 0 && m.HistoryIndex < len(m.History) {
-		expectedValue := m.History[m.HistoryIndex]
-		if oldValue != newValue && newValue != expectedValue {
-			m.HistoryIndex = -1
-			m.OriginalQuery = ""
-		}
-	}
+	m.History.TrackEdit(oldValue, newValue)
 
 	if m.Autocomplete.Visible {
 		currentValue := m.Input.Value()
@@ -441,6 +325,70 @@ func (m SearchModel) Update(msg tea.Msg) (SearchModel, tea.Cmd) {
 	return m, tea.Batch(cmd, inputCmd, autocompleteCmd)
 }
 
+func (m SearchModel) handleHelpInput(msg tea.Msg) (SearchModel, tea.Cmd, bool) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.Type {
+		case tea.KeyEsc:
+			m.Help.Hide()
+		}
+	}
+
+	m.Help, _ = m.Help.Update(msg)
+	return m, nil, true
+}
+
+func (m SearchModel) handleResumeEsc() (SearchModel, tea.Cmd, bool) {
+	if !m.ResumeList.Visible {
+		return m, nil, false
+	}
+
+	if m.ResumeList.List.FilterState() == list.Filtering {
+		m.ResumeList.List.SetFilterState(list.Unfiltered)
+		return m, nil, true
+	}
+	m.ResumeList.Hide()
+	m.ResumeList.List.ResetFilter()
+	m.Input.SetValue("")
+	return m, nil, true
+}
+
+func (m SearchModel) handleEnterKey() (SearchModel, tea.Cmd) {
+	if m.ResumeList.Visible {
+		if m.ResumeList.List.FilterState() == list.Filtering {
+			m.ResumeList.List.SetFilterState(list.FilterApplied)
+			return m, nil
+		}
+		if item := m.ResumeList.SelectedItem(); item != nil {
+			m.ResumeList.Hide()
+			cmd := func() tea.Msg {
+				return types.StartResumeDownloadMsg{
+					URL:      item.URL,
+					FormatID: item.FormatID,
+					Title:    item.Title,
+				}
+			}
+			return m, cmd
+		}
+	}
+
+	query := m.Input.Value()
+	if query == "" {
+		return m, nil
+	}
+
+	slashCmd, args, isSlash := slash.ParseCommand(query)
+	if isSlash {
+		cmd := m.executeSlashCommand(slashCmd, query, args)
+		return m, cmd
+	}
+
+	m.History.Add(query)
+	cmd := func() tea.Msg {
+		return types.StartSearchMsg{Query: query}
+	}
+	return m, cmd
+}
+
 func (m *SearchModel) executeSlashCommand(slashCmd, query, args string) tea.Cmd {
 	var cmd tea.Cmd
 	switch slashCmd {
@@ -449,7 +397,7 @@ func (m *SearchModel) executeSlashCommand(slashCmd, query, args string) tea.Cmd 
 			m.Input.SetValue("/channel ")
 			m.Input.CursorEnd()
 		} else {
-			m.addToHistory(query)
+			m.History.Add(query)
 			channelName := utils.ExtractChannelUsername(args)
 			cmd = func() tea.Msg {
 				return types.StartChannelURLMsg{ChannelName: channelName}
@@ -461,7 +409,7 @@ func (m *SearchModel) executeSlashCommand(slashCmd, query, args string) tea.Cmd 
 			m.Input.SetValue("/playlist ")
 			m.Input.CursorEnd()
 		} else {
-			m.addToHistory(query)
+			m.History.Add(query)
 			cmd = func() tea.Msg {
 				return types.StartPlaylistURLMsg{Query: args}
 			}
@@ -517,22 +465,4 @@ func keyTypeToString(key tea.KeyType) string {
 	default:
 		return ""
 	}
-}
-
-func openGithub() {
-	go func() {
-		var cmd *exec.Cmd
-		switch runtime.GOOS {
-		case "windows":
-			cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", types.GithubRepoLink)
-		case "darwin":
-			cmd = exec.Command("open", types.GithubRepoLink)
-		default:
-			cmd = exec.Command("xdg-open", types.GithubRepoLink)
-		}
-
-		if err := cmd.Start(); err != nil {
-			log.Printf("Failed to open URL: %v", err)
-		}
-	}()
 }

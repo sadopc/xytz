@@ -52,6 +52,16 @@ func (sm *SearchManager) Clear() {
 	sm.canceled = false
 }
 
+func (sm *SearchManager) ClearAndCheckCanceled() bool {
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	wasCanceled := sm.canceled
+	sm.cmd = nil
+	sm.canceled = false
+	return wasCanceled
+}
+
 func (sm *SearchManager) Cancel() error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()

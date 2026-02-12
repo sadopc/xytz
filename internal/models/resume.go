@@ -1,11 +1,12 @@
 package models
 
 import (
+	"sort"
+
 	"github.com/xdagiz/xytz/internal/styles"
 	"github.com/xdagiz/xytz/internal/utils"
 
 	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/lipgloss"
 )
 
 type ResumeItem struct {
@@ -60,13 +61,9 @@ func (m *ResumeModel) LoadItems() {
 		return
 	}
 
-	for i := range items {
-		for j := i + 1; j < len(items); j++ {
-			if items[i].Timestamp.Before(items[j].Timestamp) {
-				items[i], items[j] = items[j], items[i]
-			}
-		}
-	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Timestamp.After(items[j].Timestamp)
+	})
 
 	listItems := make([]list.Item, len(items))
 	for i, item := range items {
@@ -117,12 +114,5 @@ func (m *ResumeModel) View(width, height int) string {
 		headerText = "Resume Downloads"
 	}
 
-	var s lipgloss.Style
-	if m.List.FilterState() == list.Filtering || m.List.FilterState() == list.FilterApplied {
-		s = styles.SectionHeaderStyle
-	} else {
-		s = styles.SectionHeaderStyle
-	}
-
-	return s.Render(headerText) + "\n" + styles.ListContainer.Render(m.List.View())
+	return styles.SectionHeaderStyle.Render(headerText) + "\n" + styles.ListContainer.Render(m.List.View())
 }
